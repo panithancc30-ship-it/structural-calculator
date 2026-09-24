@@ -1,0 +1,709 @@
+/* สไตล์หน้าจอออกแบบของงานคอนกรีต — ครอบด้วย .rc-scope ทั้งหมด
+   เพื่อไม่ให้ชนกับ Tailwind/shadcn ของ shell หลัก
+   สร้างจาก concrete-app/src/styles/app.css ตอนรวมแอพ */
+
+.rc-scope {
+  --bg: #eef1f5;
+  --panel: #ffffff;
+  --ink: #1b2430;
+  --muted: #5b6775;
+  --line: #dde2e8;
+  --line-strong: #c5ccd5;
+  --accent: #1d5fbf;
+  --accent-soft: #e5eefb;
+  --ok: #1e7f46;
+  --ok-soft: #e2f3e9;
+  --warn: #9a6208;
+  --warn-soft: #fcf0d9;
+  --fail: #bf2f2f;
+  --fail-soft: #fbe4e4;
+  --radius: 10px;
+
+  font-family: 'Sarabun', Tahoma, 'Leelawadee UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.rc-scope * {
+  box-sizing: border-box;
+}
+
+.rc-scope button,
+.rc-scope input,
+.rc-scope select {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- buttons ---------- */
+.rc-scope .btn {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 7px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rc-scope .btn:hover {
+  border-color: var(--accent);
+}
+
+.rc-scope .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rc-scope .btn.small {
+  font-size: 13px;
+  padding: 3px 10px;
+}
+
+.rc-scope .btn.accent {
+  color: var(--accent);
+  border-color: #b7cdef;
+  background: var(--accent-soft);
+}
+
+.rc-scope .btn.danger {
+  color: var(--fail);
+  border-color: #e6b3b3;
+}
+
+.rc-scope .seg {
+  display: flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.rc-scope .seg button {
+  flex: 1;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  padding: 5px 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rc-scope .seg button:first-child {
+  border-left: 0;
+}
+
+.rc-scope .seg button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.rc-scope .seg.dark {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.rc-scope .seg.dark button {
+  color: #fff;
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.rc-scope .seg.dark button.active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.rc-scope .card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+/* ---------- input panel ---------- */
+.rc-scope .input-panel fieldset {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rc-scope .input-panel fieldset:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.rc-scope .input-panel legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--accent);
+}
+
+.rc-scope .grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+}
+
+.rc-scope .stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rc-scope .span2 {
+  grid-column: 1 / -1;
+}
+
+.rc-scope .field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rc-scope .field-label {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.rc-scope .field-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.rc-scope .field-input {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.rc-scope .field-input:focus-within,
+.rc-scope .text-input:focus,
+.rc-scope select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 0;
+}
+
+.rc-scope .field-input input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 5px 8px;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-scope .unit {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: #f4f6f9;
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.rc-scope select,
+.rc-scope .text-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #fff;
+}
+
+.rc-scope .field-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 6px;
+}
+
+/* ---------- summary / notes ---------- */
+.rc-scope .summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+.rc-scope .summary-status {
+  font-weight: 600;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rc-scope .params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.rc-scope .params b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-scope .summary .steps-details {
+  flex-basis: 100%;
+}
+
+.rc-scope .note {
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rc-scope .note.info {
+  background: var(--accent-soft);
+  color: #17407c;
+}
+
+.rc-scope .note.warn {
+  background: var(--warn-soft);
+  color: #6d4506;
+  margin-bottom: 10px;
+}
+
+.rc-scope .errors {
+  border-color: #efc2c2;
+  background: var(--fail-soft);
+  color: #7c1f1f;
+}
+
+.rc-scope .errors ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+/* ---------- section cards ---------- */
+.rc-scope .sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+
+@media (max-width: 1280px) {
+.rc-scope .sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rc-scope .section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.rc-scope .section-head h2 {
+  margin: 0;
+  font-size: 16.5px;
+  letter-spacing: 0.02em;
+}
+
+.rc-scope .section-head h2 small {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.rc-scope .drawing-wrap {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.rc-scope .section-drawing {
+  display: block;
+  margin: 0 auto;
+  max-height: 560px;
+}
+
+.rc-scope .section-drawing.interactive .hit {
+  cursor: pointer;
+}
+
+.rc-scope .section-drawing.interactive circle.hit:hover {
+  fill: rgba(232, 89, 12, 0.18);
+}
+
+.rc-scope .section-drawing.interactive .label:hover text {
+  fill: var(--accent);
+}
+
+.rc-scope .hint {
+  margin: 6px 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rc-scope .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rc-scope .toolbar .btn {
+  font-size: 13px;
+  padding: 3px 10px;
+}
+
+.rc-scope .badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.rc-scope .badge.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.rc-scope .badge.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.rc-scope .badge.fail {
+  background: var(--fail-soft);
+  color: var(--fail);
+}
+
+.rc-scope .tag {
+  font-size: 11.5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.rc-scope .status-icon {
+  font-weight: 700;
+}
+
+.rc-scope .status-icon.ok {
+  color: var(--ok);
+}
+
+.rc-scope .status-icon.warn {
+  color: var(--warn);
+}
+
+.rc-scope .status-icon.fail {
+  color: var(--fail);
+}
+
+/* ---------- tables ---------- */
+.rc-scope table.checks,
+.rc-scope table.steps {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.rc-scope table.checks th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rc-scope table.checks td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.rc-scope table.checks .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-scope table.checks td.icon {
+  width: 22px;
+  text-align: center;
+}
+
+.rc-scope table.checks tr.group td {
+  background: #f4f6f9;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding-top: 4px;
+}
+
+.rc-scope table.checks tr.fail td {
+  background: var(--fail-soft);
+}
+
+.rc-scope table.checks tr.warn td {
+  background: var(--warn-soft);
+}
+
+.rc-scope table.steps th {
+  text-align: left;
+  font-weight: 600;
+  padding: 3px 6px;
+  white-space: nowrap;
+  width: 70px;
+}
+
+.rc-scope table.steps td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.rc-scope table.steps .formula {
+  color: var(--muted);
+}
+
+.rc-scope table.steps .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-scope .steps-details {
+  margin-top: 10px;
+}
+
+.rc-scope .steps-details summary {
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+/* ---------- popover ---------- */
+.rc-scope .popover {
+  position: absolute;
+  z-index: 30;
+  width: 276px;
+  padding: 10px 12px 12px;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(20, 30, 45, 0.2);
+  font-size: 13.5px;
+}
+
+.rc-scope .popover-close {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.rc-scope .popover-title {
+  margin: 0 22px 8px 0;
+  font-weight: 600;
+}
+
+.rc-scope .popover-title small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.rc-scope .popover-sub {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rc-scope .popover-hint {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rc-scope .popover-hint strong {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.rc-scope .popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.rc-scope .popover-actions .btn {
+  font-size: 13px;
+  padding: 3px 9px;
+}
+
+.rc-scope .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.rc-scope .chip {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.rc-scope .chip:hover {
+  border-color: var(--ink);
+}
+
+.rc-scope .chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.rc-scope .check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.rc-scope .spacing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rc-scope .spacing-val {
+  min-width: 96px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-scope .column-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+
+@media (max-width: 1280px) {
+.rc-scope .column-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rc-scope .card-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.rc-scope .interaction-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- footing ---------- */
+.rc-scope .footing-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+
+@media (max-width: 1280px) {
+.rc-scope .footing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rc-scope .sections-card {
+  display: grid;
+  gap: 10px;
+}
+
+.rc-scope .section-wrap .section-drawing {
+  max-height: 340px;
+}
+
+.rc-scope .auto-dims {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 0;
+}
+
+.rc-scope .seg.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.rc-scope .seg.grid button:nth-child(odd) {
+  border-left: 0;
+}
+
+.rc-scope .seg.grid button:nth-child(n + 3) {
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- pile cap ---------- */
+.rc-scope .table-scroll {
+  overflow-x: auto;
+}
+
+.rc-scope .pile-table td.num .field-input {
+  display: inline-flex;
+  width: 84px;
+}
+
+.rc-scope .pile-table td.num input {
+  width: 100%;
+  text-align: right;
+}
+
+.rc-scope .check-field .field-row {
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}

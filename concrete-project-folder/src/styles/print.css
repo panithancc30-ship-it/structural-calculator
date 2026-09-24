@@ -1,0 +1,32 @@
+/* พิมพ์ได้ 1 หน้า A4 เท่านั้น: ซ่อน UI ทั้งหมด แสดงเฉพาะ .print-root > .sheet (190 × 277 มม.) */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  :root,
+  html,
+  body {
+    background: #fff !important;
+  }
+  body {
+    margin: 0;
+  }
+  .app-shell {
+    display: none !important;
+  }
+  .print-root {
+    display: block;
+  }
+  .sheet {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

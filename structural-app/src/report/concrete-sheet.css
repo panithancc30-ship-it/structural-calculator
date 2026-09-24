@@ -1,0 +1,100 @@
+/* ───── รายการคำนวณคอนกรีตเสริมเหล็กในรูปเล่ม ─────
+   ใช้กรอบหน้าและตารางร่วมกับรายการคำนวณโครงสร้างเหล็ก (print.css)
+   ไฟล์นี้เพิ่มเฉพาะส่วนที่งานคอนกรีตต้องการ: แถวหัวข้อกลุ่มในตารางตรวจสอบ
+   และการวางรูปตัด/แปลนที่วาดเป็นขนาดจริง */
+
+/* แถวคั่นกลุ่มรายการตรวจสอบ เช่น “ดัด” “เฉือน / บิด” */
+.rc-sheet .rc-group-row td {
+  background: #e2e8f0;
+  font-weight: 700;
+  padding-top: 1.5pt;
+  padding-bottom: 1.5pt;
+}
+
+.rc-figures {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4pt 10pt;
+  margin: 2pt 0;
+}
+
+.rc-figures figure {
+  margin: 0;
+  text-align: center;
+}
+
+.rc-figures figcaption {
+  font-size: 10.5pt;
+  line-height: 1.2;
+  color: #374151;
+}
+
+/* รูปวาดเป็นขนาดจริง (มม.) แต่หน้ารายงานแคบกว่าใบ A4 เดิมของโปรแกรมคอนกรีต
+   จึงให้ย่อลงได้เมื่อรูปกว้างเกินพื้นที่ โดยคงอัตราส่วนไว้ */
+.rc-figures svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* แปลนฐานรากกับรูปตัดวางคู่กัน แปลนกว้างกว่าจึงให้พื้นที่มากกว่า */
+.rc-figures .rc-plan {
+  flex: 0 1 auto;
+}
+
+.rc-figures .rc-sections {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: 4pt;
+}
+
+.rc-notes {
+  margin-top: 4pt;
+}
+
+/* แผนภาพ P–M ของเสาไม่มีขนาดจริง กำหนดความกว้างให้พอดีคู่กับรูปหน้าตัด */
+.rc-sheet .interaction-chart {
+  width: 7.2cm;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ───── ความหนาแน่นของตารางในหน้ารายงานคอนกรีต ─────
+   รายการคอนกรีตมีทั้งตารางตรวจสอบและตารางค่าคำนวณที่ยาวกว่างานเหล็กมาก
+   (ฐานรากมีทั้งแรงดันดิน เฉือนทางเดียว เฉือนทะลุ ระยะฝัง และแรงแบกทาน)
+   จึงใช้ตัวอักษรเล็กกว่ารายการเหล็ก — ยังใหญ่กว่าใบ A4 ของโปรแกรมคอนกรีตเดิมที่ใช้ 7–8 pt */
+
+.rc-sheet .report-table.compact {
+  font-size: 9.5pt;
+}
+
+.rc-sheet .report-table.compact th,
+.rc-sheet .report-table.compact td {
+  padding: 0.5pt 3pt;
+  line-height: 1.12;
+}
+
+.rc-sheet .sheet-section-title {
+  margin: 2.5pt 0 1pt;
+  font-size: 10.5pt;
+}
+
+.rc-sheet .sheet-summary {
+  margin-top: 3pt;
+  font-size: 11.5pt;
+}
+
+.rc-sheet .sheet-warnings {
+  font-size: 9.5pt;
+}
+
+.rc-sheet .sheet-note-box {
+  font-size: 10pt;
+  min-height: 0.8cm;
+}
+
+.rc-sheet .rc-notes {
+  margin-top: 3pt;
+}

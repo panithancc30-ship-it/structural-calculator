@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "structural-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "structural-app", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "structural-app-5174",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": ["structural-app/node_modules/vite/bin/vite.js", "structural-app", "--port", "5174", "--strictPort"],
+      "port": 5174,
+      "autoPort": false
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+/// <reference types="vitest/config" />
+import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  base: './',
+  resolve: {
+    alias: {
+      '@': new URL('./src', import.meta.url).pathname,
+    },
+  },
+  test: {
+    // การคำนวณทั้งงานเหล็กและงานคอนกรีตเป็นฟังก์ชันล้วน ไม่ต้องใช้ DOM
+    include: ['src/**/*.test.ts'],
+    environment: 'node',
+  },
+})

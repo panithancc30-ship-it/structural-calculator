@@ -1,0 +1,304 @@
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/fonts/THSarabunNew.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/fonts/THSarabunNew-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/fonts/THSarabunNew-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/fonts/THSarabunNew-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: block;
+}
+
+:root {
+  --report-font: 'TH Sarabun New', 'Sarabun', 'Tahoma', sans-serif;
+  --report-ink: #111827;
+  --report-line: #9ca3af;
+}
+
+.report-root {
+  font-family: var(--report-font);
+  color: var(--report-ink);
+  font-size: 16pt;
+  line-height: 1.35;
+}
+
+.report-page {
+  background: #fff;
+  width: 21cm;
+  min-height: 29.7cm;
+  padding: 2cm 1.8cm 1.8cm 2.2cm;
+  margin: 0 auto 1rem;
+  box-sizing: border-box;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 15%);
+  display: flex;
+  flex-direction: column;
+  page-break-after: always;
+  break-after: page;
+}
+
+.report-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1.5pt solid var(--report-ink);
+  padding-bottom: 4pt;
+  margin-bottom: 10pt;
+  font-size: 14pt;
+}
+
+.sheet-footer {
+  margin-top: auto;
+  padding-top: 6pt;
+  border-top: 0.75pt solid var(--report-line);
+  display: flex;
+  justify-content: space-between;
+  font-size: 13pt;
+  color: #4b5563;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5pt;
+}
+
+.report-table th,
+.report-table td {
+  border: 0.75pt solid var(--report-line);
+  padding: 2.5pt 5pt;
+  text-align: left;
+  vertical-align: top;
+}
+
+.report-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.report-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.avoid-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.section-diagram {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+}
+
+.report-page .section-diagram {
+  width: auto;
+  max-width: 10cm;
+  max-height: 8.5cm;
+}
+
+.cover-title {
+  font-size: 34pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2cm;
+  margin-top: 1.4cm;
+}
+
+.signature-box {
+  text-align: center;
+  border-top: 0.75pt dotted var(--report-ink);
+  padding-top: 1.6cm;
+}
+
+.toc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6pt;
+  margin-bottom: 4pt;
+}
+
+.toc-dots {
+  flex: 1;
+  border-bottom: 1.2pt dotted var(--report-line);
+  transform: translateY(-3pt);
+}
+
+/* ใช้ชั่วคราวตอนวัดความสูงก่อนพิมพ์ (fitToPage.ts) — ต้องตรงกับกฎของ .report-page ใน @media print */
+.measuring-print .report-page {
+  width: calc(21cm - 1.6cm - 1.4cm - var(--print-inset, 0px)) !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  display: block !important;
+}
+
+.measuring-print .report-page .sheet-footer {
+  margin-top: 12pt !important;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 1.4cm 1.4cm 1.2cm 1.6cm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .report-page {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    display: block;
+  }
+
+  .sheet-footer {
+    margin-top: 12pt;
+  }
+}
+
+/* ───── รายการคำนวณโครงสร้างเหล็ก ─────
+   มีขั้นตอนและรายการตรวจสอบหลายรายการ จึงต้องใช้ตารางที่แน่น
+   เพื่อให้ 1 รายการลงพอดี 1 หน้า A4 */
+
+.report-table.compact {
+  font-size: 11.5pt;
+}
+
+.report-table.compact th,
+.report-table.compact td {
+  padding: 0.8pt 3.5pt;
+  line-height: 1.18;
+}
+
+/* ตารางข้อมูลนำเข้าแบบ 2 คู่ต่อแถว ช่วยลดความสูงลงครึ่งหนึ่ง */
+.report-table.pairs th {
+  width: 22%;
+}
+
+.report-table.pairs td {
+  width: 28%;
+}
+
+.sheet-section-title {
+  margin: 3pt 0 1pt;
+  font-size: 11.5pt;
+  font-weight: 700;
+}
+
+.sheet-section-title:first-of-type {
+  margin-top: 0;
+}
+
+/* วางรูปตัดไว้ข้างกล่องหมายเหตุ เพื่อประหยัดความสูง */
+.sheet-bottom {
+  display: flex;
+  gap: 8pt;
+  align-items: flex-start;
+  margin-top: 5pt;
+}
+
+.sheet-bottom > .sheet-figure {
+  flex: 0 0 29%;
+}
+
+.sheet-bottom > .sheet-notes {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-page .sheet-figure .section-diagram {
+  width: 100%;
+  max-width: 100%;
+  max-height: 3.6cm;
+}
+
+.sheet-figure-caption {
+  font-size: 10.5pt;
+  line-height: 1.2;
+  text-align: center;
+  color: #374151;
+}
+
+.sheet-summary {
+  margin-top: 4pt;
+  padding: 2pt 5pt;
+  border: 1pt solid var(--report-ink);
+  font-weight: 700;
+  font-size: 13pt;
+}
+
+.sheet-warnings {
+  margin: 0;
+  padding-left: 12pt;
+  font-size: 10.5pt;
+  line-height: 1.2;
+}
+
+.sheet-note-box {
+  white-space: pre-wrap;
+  border: 0.75pt solid var(--report-line);
+  padding: 3pt 5pt;
+  font-size: 11pt;
+  min-height: 1.1cm;
+}
+
+/* ขั้นตอนการคำนวณแบ่งเป็นสองคอลัมน์ ลดความสูงลงครึ่งหนึ่งโดยไม่ตัดเนื้อหาออก */
+.sheet-two-col {
+  display: flex;
+  gap: 6pt;
+  align-items: flex-start;
+}
+
+.sheet-two-col > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.report-page .sheet-header.tight {
+  font-size: 12.5pt;
+  padding-bottom: 2.5pt;
+  margin-bottom: 5pt;
+}
+
+.report-page .sheet-header.tight strong {
+  font-size: 14pt;
+}
