@@ -4,33 +4,28 @@ import { pickScale } from '@/components/concrete/drawing/drawingModel'
 import { CalcSteps } from '@/components/concrete/results/CalcSteps'
 import { CheckTable } from '@/components/concrete/results/CheckTable'
 import { StatusBadge } from '@/components/concrete/results/StatusBadge'
-import { analyzeBeam } from '@/engine/concrete/design/designBeam'
-import { worstStatus } from '@/engine/concrete/design/sectionCheck'
 import { fmt } from '@/engine/concrete/format'
+import { analyzeLedgeBeam } from '@/engine/concrete/ledge/analyzeLedge'
+import { validateLedgeInput } from '@/engine/concrete/ledge/validate'
 import type { SectionKey } from '@/engine/concrete/types'
-import { validateInput } from '@/engine/concrete/validate'
-import { useStore } from '@/state/store'
+import { useLedgeStore } from '@/state/ledgeStore'
 
 const KEYS: SectionKey[] = ['A', 'B']
 
 /**
- * ผลการออกแบบคาน — อ่านจาก store โดยตรงเพราะรูปหน้าตัดแก้ไขเหล็กได้ในตัว
- * ฟอร์มของรายการเป็นผู้เชื่อม store กับข้อมูลรายการ (useConcreteDraft)
+ * ผลการออกแบบคานรับพื้นยื่น — น้ำหนักและแรงภายในที่โปรแกรมคิดให้ แล้วตามด้วยหน้าตัด A-A และ B-B
+ * ที่คลิกแก้เหล็กได้เหมือนคาน คสล.
  */
-export function ConcreteBeamResultView() {
-  const input = useStore((s) => s.input)
-  const layouts = useStore((s) => s.layouts)
-  const edited = useStore((s) => s.edited)
-  const redesign = useStore((s) => s.redesign)
-  const editLayout = useStore((s) => s.editLayout)
+export function ConcreteLedgeBeamResultView() {
+  const input = useLedgeStore((s) => s.input)
+  const layouts = useLedgeStore((s) => s.layouts)
+  const edited = useLedgeStore((s) => s.edited)
+  const redesign = useLedgeStore((s) => s.redesign)
+  const editLayout = useLedgeStore((s) => s.editLayout)
 
-  const errors = useMemo(() => validateInput(input), [input])
-  const analysis = useMemo(() => (errors.length ? null : analyzeBeam(input, layouts)), [errors, input, layouts])
-  const denom = useMemo(() => (errors.length ? 10 : pickScale(input, layouts)), [errors, input, layouts])
-
-  const overall = analysis
-    ? worstStatus([...analysis.A.checks, ...analysis.B.checks, ...analysis.beamChecks])
-    : null
+  const errors = useMemo(() => validateLedgeInput(input), [input])
+  const analysis = useMemo(() => (errors.length ? null : analyzeLedgeBeam(input, layouts)), [errors, input, layouts])
+  const denom = useMemo(() => (analysis ? pickScale(analysis.sections.A, layouts) : 10), [analysis, layouts])
 
   return (
     <div className="rc-scope space-y-3.5">
@@ -48,30 +43,33 @@ export function ConcreteBeamResultView() {
       {analysis && (
         <>
           <div className="card summary">
-            <div className="summary-status">ผลรวม {overall && <StatusBadge status={overall} />}</div>
+            <div className="summary-status">
+              ผลรวม <StatusBadge status={analysis.status} />
+            </div>
             <div className="params">
               <span>
-                n = <b>{analysis.params.n}</b>
+                w = <b>{fmt(analysis.loads.w, 0)}</b> กก./ม.
               </span>
               <span>
-                k = <b>{fmt(analysis.params.k, 3)}</b>
+                t = <b>{fmt(analysis.loads.torque, 0)}</b> kg·m/m
               </span>
               <span>
-                j = <b>{fmt(analysis.params.j, 3)}</b>
+                M+ = <b>{fmt(analysis.loads.Mpos, 0)}</b>
               </span>
               <span>
-                R = <b>{fmt(analysis.params.R, 2)}</b> ksc
+                M− = <b>{fmt(analysis.loads.Mneg, 0)}</b> kg·m
               </span>
               <span>
-                fc = <b>{fmt(analysis.params.fcAllow, 1)}</b>
+                Vd = <b>{fmt(analysis.loads.Vd, 0)}</b> kg
               </span>
               <span>
-                fs = <b>{fmt(analysis.params.fsAllow, 0)}</b>
-              </span>
-              <span>
-                fv = <b>{fmt(analysis.params.fvAllow, 0)}</b> ksc
+                Td = <b>{fmt(analysis.loads.Td, 0)}</b> kg·m
               </span>
             </div>
+            <details className="steps-details" open>
+              <summary>น้ำหนักลงคานและแรงภายใน</summary>
+              <CalcSteps steps={analysis.loadSteps} />
+            </details>
             <details className="steps-details">
               <summary>ค่าหน่วยแรงยอมให้ และความลึกขั้นต่ำ</summary>
               <CalcSteps steps={analysis.paramSteps} />
@@ -99,7 +97,7 @@ export function ConcreteBeamResultView() {
               <SectionCard
                 key={key}
                 sectionKey={key}
-                input={input}
+                input={analysis.sections[key]}
                 layout={layouts[key]}
                 analysis={analysis[key]}
                 denom={denom}

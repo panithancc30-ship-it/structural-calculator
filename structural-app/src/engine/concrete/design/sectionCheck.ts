@@ -136,7 +136,7 @@ export function analyzeSection(
   const M = Math.abs(input.M) * 100;
   const flex = designFlexure(p, b, dT, dC, M);
   const shear = shearTorsionDemand(input, p, dT, ds);
-  const stirrupCap = stirrupSpacing(shear, layout.stirrup.size, layout.stirrup.count, b, input.fyv);
+  const stirrupCap = stirrupSpacing(shear, layout.stirrup.size, layout.stirrup.count);
   const al = distributeAl(shear.Al, h);
   const alOf = (face: Face) => (face === 'top' ? al.top : al.bottom);
 
@@ -171,13 +171,16 @@ export function analyzeSection(
   push('flexure', `As รับอัด (${FACE_TH[compressionFace]})`,
     Number.isFinite(req.AsCompression) ? `≥ ${fmt(req.AsCompression)}` : 'หน้าตัดเล็กเกินไป',
     fmt(provided.AsCompression), okIf(provided.AsCompression + tol >= req.AsCompression));
-  push('flexure', 'fc คอนกรีต (ksc)', `≤ ${fmt(p.fcAllow, 1)}`, stress.valid ? fmt(stress.fc, 1) : '—',
-    okIf(stress.valid && stress.fc <= p.fcAllow * 1.001));
-  push('flexure', 'fs เหล็กรับดึง (ksc)', `≤ ${fmt(p.fsAllow, 0)}`, stress.valid ? fmt(stress.fs, 0) : '—',
-    okIf(stress.valid && stress.fs <= p.fsAllow * 1.001));
-  if (stress.fsPrime !== null) {
-    push('flexure', "fs′ เหล็กรับอัด (ksc)", `≤ ${fmt(p.fsAllow, 0)}`, fmt(stress.fsPrime, 0),
-      okIf(stress.fsPrime <= p.fsAllow * 1.001));
+  // M = 0 (ปลายคานช่วงเดียว) ไม่มีหน่วยแรงดัดให้ตรวจ
+  if (M > 0) {
+    push('flexure', 'fc คอนกรีต (ksc)', `≤ ${fmt(p.fcAllow, 1)}`, stress.valid ? fmt(stress.fc, 1) : '—',
+      okIf(stress.valid && stress.fc <= p.fcAllow * 1.001));
+    push('flexure', 'fs เหล็กรับดึง (ksc)', `≤ ${fmt(p.fsAllow, 0)}`, stress.valid ? fmt(stress.fs, 0) : '—',
+      okIf(stress.valid && stress.fs <= p.fsAllow * 1.001));
+    if (stress.fsPrime !== null) {
+      push('flexure', "fs′ เหล็กรับอัด (ksc)", `≤ ${fmt(p.fsAllow, 0)}`, fmt(stress.fsPrime, 0),
+        okIf(stress.fsPrime <= p.fsAllow * 1.001));
+    }
   }
 
   for (const sp of geom.spacing) {
@@ -195,8 +198,11 @@ export function analyzeSection(
 
   const s = layout.stirrup.spacing;
   push('shear', 'v (ksc)', `≤ ${fmt(shear.vMax)}`, fmt(shear.v), okIf(shear.shearSectionOk));
-  if (!shear.torsionNeglected) {
+  if (shear.method === 'eit' ? shear.T > 0 : !shear.torsionNeglected) {
     push('shear', 'vt (ksc)', `≤ ${fmt(shear.vtMax)}`, fmt(shear.vt), okIf(shear.torsionSectionOk));
+  }
+  if (shear.vCombinedMax !== null && shear.T > 0) {
+    push('shear', 'v + vt (ksc)', `≤ ${fmt(shear.vCombinedMax)}`, fmt(shear.v + shear.vt), okIf(shear.combinedOk));
   }
   push('shear', 'ระยะปลอกตามกำลัง (ซม.)', Number.isFinite(stirrupCap.sStrength) ? `≤ ${fmt(stirrupCap.sStrength, 1)}` : 'ไม่จำกัด',
     fmt(s, 1), okIf(s <= stirrupCap.sStrength + tol));
@@ -220,11 +226,29 @@ export function analyzeSection(
     );
   }
   steps.push(
-    { label: 'As,min', formula: '14·b·d / fy', value: `${fmt(flex.AsMin)} ซม.²` },
+    M > 0
+      ? { label: 'As,min', formula: '14·b·d / fy', value: `${fmt(flex.AsMin)} ซม.²` }
+      : { label: 'As,min', formula: 'M = 0 ไม่ต้องการเหล็กรับดึงจากการดัด', value: 'ไม่ใช้' },
     { label: 'v', formula: 'V / (b·d)', value: `${fmt(shear.v)} ksc`, print: true },
-    { label: 'vt', formula: '3T / Σx²y', value: `${fmt(shear.vt)} ksc`, print: true },
+    {
+      label: 'vt',
+      formula: shear.method === 'eit' ? '3.5T / Σx²y' : '3T / Σx²y',
+      value: `${fmt(shear.vt)} ksc`,
+      print: true,
+    },
   );
-  if (shear.torsionNeglected) {
+  if (shear.method === 'eit') {
+    steps.push({ label: 'vc', formula: '0.29√f′c', value: `${fmt(shear.vc)} ksc`, print: true });
+    if (shear.torsionNeglected) {
+      steps.push({ label: 'แรงบิด', formula: `vt ≤ vc`, value: 'ไม่ต้องเสริมเหล็กรับแรงบิด', print: true });
+    } else {
+      steps.push(
+        { label: 'Ac', formula: 'x1·y1 (ภายในศูนย์กลางปลอก)', value: `${fmt(shear.x1, 1)} × ${fmt(shear.y1, 1)} = ${fmt(shear.Ac, 0)} ซม.²` },
+        { label: 'At/s', formula: 'T / (2·Ac·fv)', value: `${fmt(shear.ats, 4)} ซม.²/ซม.`, print: true },
+        { label: 'Al', formula: 'T·2(x1+y1) / (2·Ac·fs)', value: `${fmt(shear.Al)} ซม.²`, print: true },
+      );
+    }
+  } else if (shear.torsionNeglected) {
     steps.push({ label: 'แรงบิด', formula: `vt ≤ 0.22√f′c = ${fmt(shear.vtNeglectLimit)}`, value: 'ละเลยได้', print: true });
     steps.push({ label: 'vc', formula: '0.29√f′c', value: `${fmt(shear.vc)} ksc`, print: true });
   } else {

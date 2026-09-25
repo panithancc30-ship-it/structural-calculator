@@ -64,7 +64,7 @@ describe('เฉือน + บิด (คำนวณมือ d = 43.543)', ()
     expect(dm.avs).toBeCloseTo(0.03908, 3);
     expect(dm.ats).toBeCloseTo(0.012433, 4);
     expect(dm.sMax).toBeCloseTo(15.3, 6);
-    const cap = stirrupSpacing(dm, 'RB9', 1, 25, 2400);
+    const cap = stirrupSpacing(dm, 'RB9', 1);
     expect(cap.sStrength).toBeCloseTo(19.89, 1);
     expect(cap.spacing).toBe(15);
     expect(dm.AlMin).toBeCloseTo(2.754, 1);

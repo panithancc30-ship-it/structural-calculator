@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { createElement } from 'react'
-import { Box, Columns3, DoorStairwell, Grid2x2, Layers, Slash, Square } from 'lucide-react'
+import { AlignStartVertical, Box, Columns3, DoorStairwell, Grid2x2, Layers, Slash, Square } from 'lucide-react'
 import { calcSteelBeamASD, type SteelBeamInput } from '@/engine/steel/beamASD'
 import { calcSteelColumnASD, type SteelColumnInput } from '@/engine/steel/columnASD'
 import type { CalcSheetKind, CheckStatus, Project } from '@/engine/shared/types'
@@ -17,6 +17,10 @@ import { ConcreteFootingForm } from '@/features/concrete-footing/ConcreteFooting
 import { ConcreteFootingResultView } from '@/features/concrete-footing/ConcreteFootingResultView'
 import { ConcreteFootingSheet, analyzeFootingSheet } from '@/features/concrete-footing/ConcreteFootingSheet'
 import { DEFAULT_CONCRETE_FOOTING_INPUT } from '@/features/concrete-footing/concreteFootingDefaults'
+import { ConcreteLedgeBeamForm } from '@/features/concrete-ledge-beam/ConcreteLedgeBeamForm'
+import { ConcreteLedgeBeamResultView } from '@/features/concrete-ledge-beam/ConcreteLedgeBeamResultView'
+import { ConcreteLedgeBeamSheet, analyzeLedgeBeamSheet } from '@/features/concrete-ledge-beam/ConcreteLedgeBeamSheet'
+import { DEFAULT_CONCRETE_LEDGE_BEAM_INPUT } from '@/features/concrete-ledge-beam/concreteLedgeBeamDefaults'
 import { ConcretePileCapForm } from '@/features/concrete-pilecap/ConcretePileCapForm'
 import { ConcretePileCapResultView } from '@/features/concrete-pilecap/ConcretePileCapResultView'
 import { ConcretePileCapSheet, analyzePileCapSheet } from '@/features/concrete-pilecap/ConcretePileCapSheet'
@@ -140,6 +144,23 @@ export const SHEET_TYPES: SheetTypeDef[] = [
     renderForm: (input, onChange) => createElement(ConcreteBeamForm, { value: input, onChange }),
     renderResult: () => createElement(ConcreteBeamResultView),
     renderSheet: (props) => createElement(ConcreteBeamSheet, props),
+  },
+  {
+    kind: 'concrete-ledge-beam',
+    group: 'concrete',
+    label: 'คานรับพื้นยื่น',
+    titlePrefix: 'คานรับพื้นยื่น B',
+    icon: AlignStartVertical,
+    defaultInput: DEFAULT_CONCRETE_LEDGE_BEAM_INPUT,
+    description:
+      'กรอกความยาวพื้นยื่นและน้ำหนักใช้งาน โปรแกรมคิดน้ำหนักลงคาน โมเมนต์ แรงเฉือน และแรงบิดให้ แล้วออกแบบเหล็กตาม วสท.',
+    overallOf: (input) => {
+      const result = analyzeLedgeBeamSheet(input)
+      return result ? toReportStatus(result.analysis.status) : 'fail'
+    },
+    renderForm: (input, onChange) => createElement(ConcreteLedgeBeamForm, { value: input, onChange }),
+    renderResult: () => createElement(ConcreteLedgeBeamResultView),
+    renderSheet: (props) => createElement(ConcreteLedgeBeamSheet, props),
   },
   {
     kind: 'concrete-column',

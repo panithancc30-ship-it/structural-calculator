@@ -45,7 +45,10 @@ export interface FlexureDesign {
   AsPrimeReq: number;
 }
 
-/** ออกแบบเหล็กรับโมเมนต์ดัด M (kg·cm) ของหน้าตัดสี่เหลี่ยม */
+/**
+ * ออกแบบเหล็กรับโมเมนต์ดัด M (kg·cm) ของหน้าตัดสี่เหลี่ยม
+ * M = 0 (เช่น ปลายคานช่วงเดียวของคานรับพื้นยื่น) ไม่ต้องการเหล็กรับดึงจากการวิเคราะห์ จึงไม่ใช้ As,min
+ */
 export function designFlexure(p: WsdParams, b: number, d: number, dPrime: number, M: number): FlexureDesign {
   const Mc = p.R * b * d * d;
   const AsMin = (C.AsMinCoef / p.fy) * b * d;
@@ -56,7 +59,7 @@ export function designFlexure(p: WsdParams, b: number, d: number, dPrime: number
       M, d, dPrime, Mc,
       doubly: false,
       As1, As2: 0, AsFlex: As1, AsMin,
-      AsReq: Math.max(As1, AsMin),
+      AsReq: M > 0 ? Math.max(As1, AsMin) : 0,
       fsPrime: 0,
       AsPrimeReq: 0,
     };

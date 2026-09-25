@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { SectionAnalysis } from '@/engine/concrete/design/sectionCheck';
 import { addLayer, addSideRow } from '@/engine/concrete/layoutOps';
 import type { BeamInput, SectionKey, SectionLayout } from '@/engine/concrete/types';
-import { useStore } from '@/state/store';
 import { SectionDrawing } from './drawing/SectionDrawing';
 import type { DrawingPick } from './drawing/drawingModel';
 import { BarPopover, type ApplyEdit } from './editor/BarPopover';
@@ -20,6 +19,9 @@ interface Props {
   denom: number;
   edited: boolean;
   stirrupNote: string | null;
+  /** การแก้เหล็กและออกแบบใหม่ของ store ที่หน้าตัดนี้สังกัด (คาน คสล. หรือคานรับพื้นยื่น) */
+  editLayout: (key: SectionKey, fn: (layout: SectionLayout) => SectionLayout) => void;
+  redesign: (key: SectionKey) => void;
 }
 
 interface Selection {
@@ -34,9 +36,17 @@ function pickId(pick: DrawingPick): string {
   return pick.kind === 'bar' ? pick.barId : pick.kind === 'side' ? pick.rowId : 'stirrup';
 }
 
-export function SectionCard({ sectionKey, input, layout, analysis, denom, edited, stirrupNote }: Props) {
-  const editLayout = useStore((s) => s.editLayout);
-  const redesign = useStore((s) => s.redesign);
+export function SectionCard({
+  sectionKey,
+  input,
+  layout,
+  analysis,
+  denom,
+  edited,
+  stirrupNote,
+  editLayout,
+  redesign,
+}: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [sel, setSel] = useState<Selection | null>(null);
   const t = SECTION_TITLES[sectionKey];
