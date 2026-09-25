@@ -8,6 +8,8 @@ import {
   analyzeColumnPunching,
   analyzePilePunching,
   anchorageAvailable,
+  basketRecommended,
+  maxBarSpacing,
   capWidth,
   directionDemand,
   faceMoments,
@@ -39,20 +41,24 @@ export function pickArrangement(input: PileCapInput, t: number): PileArrangement
   return { count: K.maxPiles, rotate: false };
 }
 
-/** เลือกขนาด/จำนวนเหล็กทั้งสองทิศ — ชั้นล่างคือทิศที่โมเมนต์ต่อความกว้างมากกว่า */
+/**
+ * เลือกขนาด/จำนวนเหล็กทั้งสองทิศ — ชั้นล่างคือทิศที่โมเมนต์ต่อความกว้างมากกว่า
+ * เข็มต้นเดียวหรือฐานรากหนามากใช้เหล็กตะกร้อ (ขาล่างและขาบนแบ่งเหล็กกันร้าวกันคนละครึ่ง)
+ */
 export function autoPileCapLayout(input: PileCapInput, arrangement: PileArrangement, t: number): FootingLayout {
   return layoutFor(input, pileCapLoads(input, arrangement, t));
 }
 
 function layoutFor(input: PileCapInput, loads: PileCapLoads): FootingLayout {
   const { dims } = loads;
+  const basket = basketRecommended(loads.piles.nominal.length, dims.t);
   const p = wsdParams(input.fc, input.fy, input.fy);
   const moments = { x: faceMoments(loads, 'x'), y: faceMoments(loads, 'y') };
   const perWidth = (dir: BarDir) => Math.max(0, moments[dir].neg, moments[dir].pos) / capWidth(dims, dir);
   const bottom: BarDir = perWidth('x') >= perWidth('y') ? 'x' : 'y';
   const start = Math.max(0, MAIN_BAR_SIZES.indexOf(input.bar));
   const candidates: BarName[] = [...MAIN_BAR_SIZES.slice(start), ...MAIN_BAR_SIZES.slice(0, start).reverse()];
-  const sMax = Math.min(KF.maxSpacingFactor * dims.t, KF.maxSpacing);
+  const sMax = maxBarSpacing(dims.t, basket);
 
   const pick = (dir: BarDir, zBase: number): BarSet => {
     const width = capWidth(dims, dir);
@@ -61,7 +67,7 @@ function layoutFor(input: PileCapInput, loads: PileCapLoads): FootingLayout {
     for (const size of candidates) {
       const { dia, area } = REBARS[size];
       const d = dims.t - zBase - dia / 2;
-      const demand = directionDemand(input, loads, dir, d, p, moments[dir]);
+      const demand = directionDemand(input, loads, dir, d, p, moments[dir], basket);
       const net = width - 2 * input.cover - dia;
       const n = Math.max(2, Math.ceil(demand.AsReq / area - 1e-9), Math.ceil(net / sMax - 1e-9) + 1);
       const set = { size, count: n };
@@ -79,7 +85,7 @@ function layoutFor(input: PileCapInput, loads: PileCapLoads): FootingLayout {
   const top = otherDir(bottom);
   const bottomSet = pick(bottom, input.cover);
   const topSet = pick(top, input.cover + REBARS[bottomSet.size].dia);
-  return bottom === 'x' ? { x: bottomSet, y: topSet, bottom } : { x: topSet, y: bottomSet, bottom };
+  return bottom === 'x' ? { x: bottomSet, y: topSet, bottom, basket } : { x: topSet, y: bottomSet, bottom, basket };
 }
 
 /** d ขั้นต่ำ, ดัด (คอนกรีต), เฉือนแบบคาน, เฉือนทะลุรอบเสาและรอบเข็ม ผ่านด้วยเหล็กที่ออกแบบอัตโนมัติ */

@@ -264,7 +264,7 @@ export function analyzeStair(input: StairInput, dims: StairDims, layout: StairLa
       value: `${p.n}, ${fmt(p.k, 3)}, ${fmt(p.j, 3)}, ${fmt(p.R, 2)} ksc`,
       print: true,
     },
-    { label: 'h ขั้นต่ำ', formula: hMin.label, value: `${fmt(hMin.required, 1)} ซม.`, print: true },
+    { label: 'h ขั้นต่ำ', formula: hMin.label, value: `${fmt(hMin.required, 1)} ซม.`, print: false },
     {
       label: 'เฉือน',
       formula: `v = V/(b·d), vc = 0.29√f′c${anyContinuous ? ' (ปลายต่อเนื่อง V×1.15)' : ''}`,
@@ -275,10 +275,12 @@ export function analyzeStair(input: StairInput, dims: StairDims, layout: StairLa
       label: 'ปฏิกิริยาลงคาน',
       formula: 'ต่อความยาวคานรองรับ 1 ม.',
       value: `ล่าง ${fmt(reactions.low, 0)} · บน ${fmt(reactions.high, 0)} กก./ม.`,
-      print: true,
+      print: false,
     },
   ];
 
+  // แถวที่ print: false แสดงเฉพาะบนจอ — หน้ารายงานมีค่าเหล่านี้ในตารางข้อมูลและตารางตรวจสอบอยู่แล้ว
+  // ตัดออกเพื่อให้หนึ่งรายการพอดีหนึ่งหน้า A4
   for (const key of ['bottom', 'topLow', 'topHigh', 'dist'] as StairBarKey[]) {
     const run = layout[key];
     if (!run) continue;
@@ -290,7 +292,7 @@ export function analyzeStair(input: StairInput, dims: StairDims, layout: StairLa
           ? `As ต้องการ ρ·b·t = ${fmt(b.AsReq)} ซม.²/ม.`
           : `As ต้องการ max(M/(fs·j·d), ρ·b·t) = ${fmt(b.AsReq)} ซม.²/ม.`,
       value: `${run.size} @ ${fmt(run.spacing / 100, 2)} (${fmt(b.AsProv)} ซม.²/ม.)`,
-      print: true,
+      print: false,
     });
   }
   if (layout.step) {
@@ -298,7 +300,7 @@ export function analyzeStair(input: StairInput, dims: StairDims, layout: StairLa
       label: STAIR_BAR_TH.step,
       formula: 'ตามแบบมาตรฐาน ไม่ได้คำนวณ',
       value: `${layout.step.size} @${cmToM(layout.step.spacing)} + ${layout.step.size} ทุกมุม`,
-      print: true,
+      print: false,
     });
   }
 

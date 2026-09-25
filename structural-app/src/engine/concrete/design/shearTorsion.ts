@@ -25,7 +25,7 @@ export interface ShearTorsionDemand {
   alphaT: number;
 
   vExcess: number;
-  vExcessMax: number;
+  vMax: number;
   shearSectionOk: boolean;
   vtMax: number;
   torsionSectionOk: boolean;
@@ -73,7 +73,7 @@ export function shearTorsionDemand(input: BeamInput, p: WsdParams, d: number, st
   }
 
   const vExcess = Math.max(0, v - vc);
-  const vExcessMax = C.vExcessMaxCoef * sqrtFc;
+  const vMax = C.vMaxCoef * sqrtFc;
   const vtMax = (1 + C.torsionSteelMaxFactor) * vtc;
 
   const x1 = x - 2 * cover - stirrupDia;
@@ -101,8 +101,8 @@ export function shearTorsionDemand(input: BeamInput, p: WsdParams, d: number, st
     V, T, d, sqrtFc,
     v, vcBase, vc, vt, vtc, vtNeglectLimit, torsionNeglected,
     sumX2y, x1, y1, alphaT,
-    vExcess, vExcessMax,
-    shearSectionOk: v - vc <= vExcessMax,
+    vExcess, vMax,
+    shearSectionOk: v <= vMax,
     vtMax,
     torsionSectionOk: torsionNeglected || vt <= vtMax,
     avs, ats,

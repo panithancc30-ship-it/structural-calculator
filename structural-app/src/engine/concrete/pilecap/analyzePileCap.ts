@@ -102,11 +102,30 @@ export interface DirectionDemand {
   AsReq: number;
 }
 
-export function directionDemand(input: PileCapInput, loads: PileCapLoads, dir: BarDir, d: number, p: WsdParams, M = faceMoments(loads, dir)): DirectionDemand {
+/** ควรเสริมเหล็กแบบตะกร้อ: เข็มต้นเดียว หรือฐานรากหนาตั้งแต่ basketMinThickness */
+export const basketRecommended = (pileCount: number, t: number) => pileCount === 1 || t >= K.basketMinThickness - 1e-9;
+
+/** ระยะเรียงเหล็กสูงสุด: min(3t, 45 ซม.) และไม่เกิน 20 ซม. เมื่อเป็นตะกร้อ */
+export const maxBarSpacing = (t: number, basket: boolean) =>
+  Math.min(KF.maxSpacingFactor * t, KF.maxSpacing, basket ? K.basketMaxSpacing : Infinity);
+
+/**
+ * As ต้องการของเหล็กทิศหนึ่ง (ขาล่าง)
+ * @param basket เหล็กตะกร้อมีขาบนเท่ากับขาล่าง — เหล็กกันร้าว ρ·b·t จึงแบ่งให้ขาละครึ่ง
+ */
+export function directionDemand(
+  input: PileCapInput,
+  loads: PileCapLoads,
+  dir: BarDir,
+  d: number,
+  p: WsdParams,
+  M = faceMoments(loads, dir),
+  basket = false,
+): DirectionDemand {
   const width = capWidth(loads.dims, dir);
   const Mdesign = Math.max(0, M.neg, M.pos);
   const AsFlex = d > 0 ? Mdesign / (p.fsAllow * p.j * d) : Infinity;
-  const AsMin = asMinRatio(input.fy) * width * loads.dims.t;
+  const AsMin = asMinRatio(input.fy) * width * loads.dims.t * (basket ? K.basketTempShare : 1);
   return { M, Mdesign, Mc: p.R * width * d * d, AsFlex, AsMin, AsReq: Math.max(AsFlex, AsMin) };
 }
 
@@ -122,6 +141,8 @@ export function anchorageAvailable(loads: PileCapLoads, dir: BarDir, M: SidePair
 export interface TopTension {
   M: number;
   AsTop: number;
+  /** As ของขาบนเหล็กตะกร้อ — null เมื่อไม่มีเหล็กบน */
+  AsProvTop: number | null;
 }
 
 export interface PileCapDirection extends DirectionDemand {
@@ -152,7 +173,6 @@ export interface ColumnPunching extends PunchingPerimeter {
   V: number;
   Mux: number;
   Muy: number;
-  betaC: number;
   vV: number;
   vM: number;
   v: number;
@@ -195,6 +215,8 @@ export interface PileCapAnalysis {
   pile: PileCheck;
   x: PileCapDirection;
   y: PileCapDirection;
+  /** เหล็กตะกร้อ: เหล็กทั้งสองทิศเป็นวงปิดหุ้มผิวล่าง ผิวข้าง และผิวบน */
+  basket: boolean;
   punching: ColumnPunching | null;
   pilePunching: PilePunching | null;
   bearing: BearingCheck;
@@ -203,8 +225,7 @@ export interface PileCapAnalysis {
   status: CheckStatus;
 }
 
-const punchingVc = (fc: number, betaC: number, alphaS: number, d: number, b0: number) =>
-  Math.sqrt(fc) * Math.min(KF.punchingVcMax, KF.punchingVcBase * (1 + 2 / betaC), KF.punchingVcBase * ((alphaS * d) / b0 + 2));
+const punchingVc = (fc: number) => KF.punchingVcCoef * Math.sqrt(fc);
 
 /** เฉือนทะลุรอบเสา: แรงเข็มนอกหน้าตัดวิกฤต + โมเมนต์ถ่ายเท γv·M·c/J */
 export function analyzeColumnPunching(input: PileCapInput, loads: PileCapLoads, d: number): ColumnPunching | null {
@@ -224,10 +245,9 @@ export function analyzeColumnPunching(input: PileCapInput, loads: PileCapLoads, 
   V = Math.max(0, V);
   const Mux = input.My * 100 + P * (loads.loc.xc - per.xg) - insideX;
   const Muy = input.Mx * 100 + P * (loads.loc.yc - per.yg) - insideY;
-  const betaC = Math.max(input.cx, input.cy) / Math.min(input.cx, input.cy);
   const vV = V / (per.b0 * d);
   const vM = (per.Jx > 0 ? (per.gammaX * Math.abs(Mux) * per.cX) / per.Jx : 0) + (per.Jy > 0 ? (per.gammaY * Math.abs(Muy) * per.cY) / per.Jy : 0);
-  return { ...per, V, Mux, Muy, betaC, vV, vM, v: vV + vM, vc: punchingVc(input.fc, betaC, per.alphaS, d, per.b0) };
+  return { ...per, V, Mux, Muy, vV, vM, v: vV + vM, vc: punchingVc(input.fc) };
 }
 
 /** เฉือนทะลุรอบเข็มแต่ละต้น (เข็มมุม/ขอบ หน้าตัดถูกตัดด้วยขอบฐาน) — ข้ามต้นที่หน้าตัดวิกฤตซ้อนกับของเสา; คืนต้นที่ v/vc สูงสุด */
@@ -251,7 +271,7 @@ export function analyzePilePunching(input: PileCapInput, loads: PileCapLoads, d:
     const per = punchingPerimeter(loc, loads.dims, d);
     if (per.b0 <= 0) return;
     const v = R / (per.b0 * d);
-    const vc = punchingVc(input.fc, 1, per.alphaS, d, per.b0);
+    const vc = punchingVc(input.fc);
     if (!worst || v / vc > worst.v / worst.vc) worst = { ...per, pile: i, V: R, v, vc };
   });
   return worst;
@@ -275,7 +295,8 @@ function analyzeDirection(input: PileCapInput, loads: PileCapLoads, geom: Footin
   const d = geom.d[dir];
   const db = geom.db[dir];
   const width = capWidth(dims, dir);
-  const demand = directionDemand(input, loads, dir, d, p);
+  const basket = layout.basket === true;
+  const demand = directionDemand(input, loads, dir, d, p, undefined, basket);
   const count = Math.max(1, Math.round(bars.count));
   const pitch = count > 1 ? (width - 2 * input.cover - db) / (count - 1) : Infinity;
   const V = oneWayShears(loads, dir, d, input.pileSize);
@@ -288,6 +309,8 @@ function analyzeDirection(input: PileCapInput, loads: PileCapLoads, geom: Footin
     const hook = available < ld;
     anchorage = { available, ld, ldh, hook, ok: available >= (hook ? ldh : ld) - 1e-9 };
   }
+  const topM = -Mneg;
+  const topD = dims.t - input.cover;
   return {
     ...demand,
     dir,
@@ -301,14 +324,14 @@ function analyzeDirection(input: PileCapInput, loads: PileCapLoads, geom: Footin
     pitch,
     clear: pitch - db,
     clearReq: Math.max(db, C.minClearSpacing),
-    sMax: Math.min(KF.maxSpacingFactor * dims.t, KF.maxSpacing),
+    sMax: maxBarSpacing(dims.t, basket),
     band: null,
     bandAsReq: 0,
     bandAsProv: null,
     V,
     v: Math.max(0, V.neg, V.pos) / (width * d),
     vc: KF.oneWayVcCoef * Math.sqrt(input.fc),
-    top: Mneg < -1 ? { M: -Mneg, AsTop: -Mneg / (p.fsAllow * p.j * (dims.t - input.cover)) } : null,
+    top: Mneg < -1 ? { M: topM, AsTop: topM / (p.fsAllow * p.j * topD), AsProvTop: basket ? AsProv : null } : null,
     anchorage,
   };
 }
@@ -339,6 +362,7 @@ function pileGeometryCheck(input: PileCapInput, loads: PileCapLoads): PileCheck 
 const ton = (kg: number) => fmt(kg / 1000, 2);
 const tm = (kgcm: number) => fmt(kgcm / 1e5, 2);
 const meter = (cm: number) => fmt(cm / 100, 2);
+const r2 = (r: PileCapDirection) => `${r.count}-${r.size}`;
 
 export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement, t: number, layout: FootingLayout): PileCapAnalysis {
   const loads = pileCapLoads(input, arrangement, t);
@@ -375,7 +399,12 @@ export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement
   for (const r of [x, y]) {
     push('flexure', `M ${DIR_TH[r.dir]} ≤ R·b·d² (t·m)`, `≤ ${tm(r.Mc)}`, tm(r.Mdesign), okIf(r.Mdesign <= r.Mc * (1 + 1e-6)));
     push('flexure', `As ${DIR_TH[r.dir]} (ซม.²)`, `≥ ${fmt(r.AsReq)}`, fmt(r.AsProv), okIf(r.AsProv >= r.AsReq * (1 - 1e-6)));
-    if (r.top) push('flexure', `ผิวบน ${DIR_TH[r.dir]} (เข็มรับแรงถอน) As บน (ซม.²)`, `≥ ${fmt(r.top.AsTop)}`, 'เสริมเหล็กบน', 'warn');
+    if (r.top) {
+      const top = r.top;
+      push('flexure', `ผิวบน ${DIR_TH[r.dir]} (เข็มรับแรงถอน) As บน (ซม.²)`, `≥ ${fmt(top.AsTop)}`,
+        top.AsProvTop === null ? 'เสริมเหล็กบน' : fmt(top.AsProvTop),
+        top.AsProvTop === null ? 'warn' : okIf(top.AsProvTop >= top.AsTop * (1 - 1e-6)));
+    }
   }
   for (const r of [x, y]) {
     push('oneWay', `v ${DIR_TH[r.dir]} ที่ระยะ d จากผิวเสา (ksc)`, `≤ ${fmt(r.vc)}`, fmt(r.v), okIf(r.v <= r.vc * (1 + 1e-6)));
@@ -388,6 +417,12 @@ export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement
       okIf(pilePunching.v <= pilePunching.vc * (1 + 1e-6)));
   }
 
+  const basket = layout.basket === true;
+  if (basketRecommended(n, dims.t) || basket) {
+    push('detail', `เหล็กเสริมแบบตะกร้อ (${n === 1 ? 'เข็มต้นเดียว' : `หนา ≥ ${meter(K.basketMinThickness)} ม.`})`,
+      basketRecommended(n, dims.t) ? 'ควรมี' : 'ไม่บังคับ', basket ? 'มี' : 'ไม่มี',
+      okIf(basket || !basketRecommended(n, dims.t), 'warn'));
+  }
   const dMin = Math.min(geom.d.x, geom.d.y);
   push('detail', 'ความลึกเหนือเหล็กล่าง d (ซม.)', `≥ ${fmt(K.minDepthAboveSteel, 0)}`, fmt(dMin, 1), okIf(dMin >= K.minDepthAboveSteel - 1e-9));
   for (const r of [x, y]) {
@@ -438,17 +473,25 @@ export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement
     const T = DIR_TH[r.dir];
     steps.push(
       { label: `M ${T}`, formula: `ΣR·(ระยะเข็มถึงผิวเสา), b = ${meter(r.width)} ม.`, value: `${tm(r.Mdesign)} t·m`, print: true },
-      { label: `As ${T}`, formula: `max(M/(fs·j·d), ${fmt(asMinRatio(input.fy), 4)}·b·t)`, value: `${fmt(r.AsReq)} → ${r.count}-${r.size} = ${fmt(r.AsProv)} ซม.²`, print: true },
+      { label: `As ${T}`, formula: `max(M/(fs·j·d), ${basket ? '½·' : ''}${fmt(asMinRatio(input.fy), 4)}·b·t)`, value: `${fmt(r.AsReq)} → ${r.count}-${r.size} = ${fmt(r.AsProv)} ซม.²`, print: true },
       { label: `V ${T}`, formula: 'ΣR นอกหน้าตัดที่ระยะ d (เข็มคร่อมคิดตามสัดส่วน)', value: `${ton(Math.max(0, r.V.neg, r.V.pos))} ตัน, v = ${fmt(r.v)} ksc`, print: true },
     );
     if (r.top) steps.push({ label: `ผิวบน ${T}`, formula: 'โมเมนต์ลบจากเข็มรับแรงถอน', value: `As บน ≥ ${fmt(r.top.AsTop)} ซม.²` });
+  }
+  if (basket) {
+    steps.push({
+      label: 'เหล็กตะกร้อ',
+      formula: `งอเป็นวงปิด หุ้มผิวล่าง ผิวข้าง และผิวบน — เหล็กกันร้าว ${fmt(asMinRatio(input.fy), 4)}·b·t แบ่งขาล่างและขาบนขาละครึ่ง`,
+      value: `X ${r2(x)} · Y ${r2(y)}`,
+      print: true,
+    });
   }
   if (punching) {
     steps.push(
       { label: 'b0 เสา', formula: `${punching.nSides} ด้าน ห่างผิวเสา d/2, d = ${fmt(geom.dAvg, 1)}`, value: `${fmt(punching.b0, 1)} ซม.` },
       { label: 'V ทะลุเสา', formula: 'ΣR เข็มนอกหน้าตัดวิกฤต', value: `${ton(punching.V)} ตัน`, print: true },
       { label: 'M ถ่ายเท', formula: 'รอบศูนย์หน้าตัดวิกฤต (x, y)', value: `${tm(punching.Mux)}, ${tm(punching.Muy)} t·m` },
-      { label: 'vc ทะลุ', formula: `√f′c·min(0.53, 0.265(1+2/βc), 0.265(αs·d/b0+2)), αs = ${punching.alphaS}`, value: `${fmt(punching.vc)} ksc`, print: true },
+      { label: 'vc ทะลุ', formula: '0.53√f′c', value: `${fmt(punching.vc)} ksc`, print: true },
     );
   }
   if (pilePunching) {
@@ -463,7 +506,7 @@ export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement
   if (anch.length > 0) {
     steps.push({
       label: 'ld, ldh',
-      formula: '0.06Ab·fy/√f′c, 318db/√f′c·fy/4,200 × As ต้องการ/As ใส่',
+      formula: 'ld = fs·db/(4u), u = 3.23√f′c/db ≤ 35; ldh = 318db/√f′c·fy/4,200 × As ต้องการ/As ใส่',
       value: anch.map((r) => `${r.size}: ${fmt(r.anchorage!.ld, 0)}, ${fmt(r.anchorage!.ldh, 0)}`).join(' / ') + ' ซม.',
     });
   }
@@ -472,6 +515,6 @@ export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement
     steps.push({ label: 'เหล็กเดือย', formula: '(P − fb·A1)/fs — ถ่ายแรงแบกทานส่วนเกิน', value: `As ≥ ${fmt(bearing.dowelAs)} ซม.²`, print: true });
   }
 
-  return { dims, loads, geom, params, pile, x, y, punching, pilePunching, bearing, checks, steps, status: worstStatus(checks) };
+  return { dims, loads, geom, params, pile, x, y, basket, punching, pilePunching, bearing, checks, steps, status: worstStatus(checks) };
 }
 

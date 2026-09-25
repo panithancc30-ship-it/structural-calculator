@@ -14,7 +14,6 @@ function importFromColumn(): Partial<PileCapInput> {
   const { input } = useColumnStore.getState();
   const side = Math.round(input.D * Math.sqrt(Math.PI / 4));
   return {
-    capName: `F-${input.columnName || 'C1'}`,
     cx: input.shape === 'rect' ? input.b : side,
     cy: input.shape === 'rect' ? input.h : side,
     P: input.P,
@@ -30,32 +29,10 @@ export function PileCapInputPanel({ design }: { design: { arrangement: PileArran
     value: input[key],
     onChange: (v: number) => setInput({ [key]: v } as Partial<PileCapInput>),
   });
-  const text = (key: 'projectName' | 'capName' | 'designer') => ({
-    value: input[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInput({ [key]: e.target.value }),
-  });
   const count = design?.arrangement.count ?? input.pileCount;
 
   return (
     <div className="input-panel">
-      <fieldset>
-        <legend>โครงการ</legend>
-        <div className="grid2">
-          <label className="field span2">
-            <span className="field-label">ชื่อโครงการ</span>
-            <input className="text-input" {...text('projectName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ชื่อฐานราก</span>
-            <input className="text-input" {...text('capName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ผู้ออกแบบ</span>
-            <input className="text-input" {...text('designer')} />
-          </label>
-        </div>
-      </fieldset>
-
       <fieldset>
         <legend>เสา / ตอม่อ</legend>
         <div className="grid2">

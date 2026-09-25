@@ -13,10 +13,8 @@ import {
 
 /** ค่าเริ่มต้นตรงกับแบบตัวอย่างบันไดช่วงชานพัก – ชั้น 2 (8 ลูกตั้ง @0.175, ช่วงราบ 3.50 ม.) */
 export const DEFAULT_STAIR: StairInput = {
-  projectName: 'โครงการทดสอบ',
   stairName: 'ST1',
   levels: 'ชานพัก – ชั้น 2',
-  designer: '',
   usage: 'residential',
   riser: 17.5,
   tread: 25,

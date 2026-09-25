@@ -30,7 +30,8 @@ export function buildCircleLayout(n: number, input: ColumnInput, tie: Transverse
 }
 
 function transverseFor(input: ColumnInput): TransverseSpec {
-  const size: BarName = REBARS[input.tieBar].dia + 1e-9 >= K.tieMinDia ? input.tieBar : 'RB9';
+  const minDia = input.shape === 'circle' ? K.spiralMinDia : K.tieMinDia;
+  const size: BarName = REBARS[input.tieBar].dia + 1e-9 >= minDia ? input.tieBar : 'RB9';
   if (input.shape === 'circle') return { size, spacing: spiralRequirement(input, size).spacing };
   const probe = buildRectLayout(4, input, { size, spacing: 15 });
   return { size, spacing: tieRequirement(input, columnGeometry(input, probe), size).spacing };

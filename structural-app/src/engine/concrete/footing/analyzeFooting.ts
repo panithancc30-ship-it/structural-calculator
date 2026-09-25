@@ -91,6 +91,7 @@ export function oneWayShears(loads: FootingLoads, dir: BarDir, d: number): SideP
 }
 
 export function asMinRatio(fy: number): number {
+  if (fy <= K.plainBarFyMax) return K.rhoTempPlain;
   return fy < K.rhoTempRefFy ? K.rhoTempLowFy : Math.max(K.rhoTempMin, (K.rhoTemp * K.rhoTempRefFy) / fy);
 }
 
@@ -148,13 +149,24 @@ export function directionDemand(
   return { M, Mdesign, Mc: p.R * width * d * d, AsFlex, AsMin, AsReq, band, bandAsReq: band ? AsReq * band.ratio : 0 };
 }
 
-/** ระยะฝังเหล็กตรง ld และงอขอ ldh — excess = As ต้องการ/As ที่ใส่ ลดระยะได้ตาม 12.2.5, 12.5.3.4 */
+/** หน่วยแรงยึดเหนี่ยวยอมให้ของเหล็กล่าง (ksc) ตามมาตรฐาน วสท. */
+export function allowableBond(size: BarName, fc: number): number {
+  const { dia, kind } = REBARS[size];
+  const u = Math.min((K.bondCoef * Math.sqrt(fc)) / dia, K.bondMax);
+  return kind === 'RB' ? Math.min(u * K.bondPlainFactor, K.bondPlainMax) : u;
+}
+
+/**
+ * ระยะฝังเหล็กตรง ld = fs·db/(4u) ตาม วสท. และงอขอ ldh ตาม ACI 12.5
+ * excess = As ต้องการ/As ที่ใส่ — หน่วยแรงในเหล็กจริงต่ำกว่าค่ายอมให้ตามสัดส่วนนี้
+ */
 export function developmentLengths(size: BarName, fc: number, fy: number, excess = 1) {
-  const { dia, area } = REBARS[size];
+  const { dia } = REBARS[size];
   const sq = Math.sqrt(fc);
   const r = Math.min(1, Math.max(0, excess));
+  const fs = Math.min(C.fsRatio * fy, C.fsMax) * r;
   return {
-    ld: Math.max(Math.max((K.ldCoef * area * fy) / sq, K.ldDbCoef * dia * fy) * r, K.ldMin),
+    ld: Math.max((fs * dia) / (4 * allowableBond(size, fc)), K.ldMin),
     ldh: Math.max(((K.ldhCoef * dia) / sq) * (fy / K.ldhFyRef) * r, K.ldhDbMin * dia, K.ldhMin),
   };
 }
@@ -212,7 +224,6 @@ export interface PunchingCheck extends PunchingPerimeter {
   /** โมเมนต์ถ่ายเทรอบศูนย์หน้าตัดวิกฤต (kg·cm) */
   Mux: number;
   Muy: number;
-  betaC: number;
   vV: number;
   vM: number;
   v: number;
@@ -313,15 +324,12 @@ export function analyzePunching(input: FootingInput, loads: FootingLoads, d: num
   const V = Math.max(0, P - inside.F);
   const Mux = input.My * 100 + P * (loc.xc - per.xg) - (inside.Sx - per.xg * inside.F);
   const Muy = input.Mx * 100 + P * (loc.yc - per.yg) - (inside.Sy - per.yg * inside.F);
-  const betaC = Math.max(input.cx, input.cy) / Math.min(input.cx, input.cy);
   const vV = V / (per.b0 * d);
   const vM =
     (per.Jx > 0 ? (per.gammaX * Math.abs(Mux) * per.cX) / per.Jx : 0) +
     (per.Jy > 0 ? (per.gammaY * Math.abs(Muy) * per.cY) / per.Jy : 0);
-  const vc =
-    Math.sqrt(input.fc) *
-    Math.min(K.punchingVcMax, K.punchingVcBase * (1 + 2 / betaC), K.punchingVcBase * ((per.alphaS * d) / per.b0 + 2));
-  return { ...per, V, Mux, Muy, betaC, vV, vM, v: vV + vM, vc };
+  const vc = K.punchingVcCoef * Math.sqrt(input.fc);
+  return { ...per, V, Mux, Muy, vV, vM, v: vV + vM, vc };
 }
 
 function analyzeBearing(input: FootingInput, loads: FootingLoads, p: WsdParams): BearingCheck {
@@ -444,7 +452,7 @@ export function analyzeFooting(input: FootingInput, dims: FootingDims, layout: F
       { label: 'M ถ่ายเท', formula: 'รอบศูนย์หน้าตัดวิกฤต (x, y)', value: `${tm(punching.Mux)}, ${tm(punching.Muy)} t·m` },
       {
         label: 'vc ทะลุ',
-        formula: `√f′c·min(0.53, 0.265(1+2/βc), 0.265(αs·d/b0+2)), αs = ${punching.alphaS}`,
+        formula: '0.53√f′c',
         value: `${fmt(punching.vc)} ksc`,
         print: true,
       },
@@ -454,7 +462,7 @@ export function analyzeFooting(input: FootingInput, dims: FootingDims, layout: F
   if (anch.length > 0) {
     steps.push({
       label: 'ld, ldh',
-      formula: '0.06Ab·fy/√f′c, 318db/√f′c·fy/4,200 × As ต้องการ/As ใส่',
+      formula: 'ld = fs·db/(4u), u = 3.23√f′c/db ≤ 35; ldh = 318db/√f′c·fy/4,200 × As ต้องการ/As ใส่',
       value: anch.map((r) => `${r.size}: ${fmt(r.anchorage!.ld, 0)}, ${fmt(r.anchorage!.ldh, 0)}`).join(' / ') + ' ซม.',
       print: true,
     });

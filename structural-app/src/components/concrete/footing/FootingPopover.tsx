@@ -1,5 +1,5 @@
 import type { FootingDirection } from '@/engine/concrete/footing/analyzeFooting';
-import { setBarSet, setBottom } from '@/engine/concrete/footing/layoutOps';
+import { setBarSet, setBasket, setBottom } from '@/engine/concrete/footing/layoutOps';
 import type { BarDir, BarSet, FootingLayout } from '@/engine/concrete/footing/types';
 import { cmToM, fmt } from '@/engine/concrete/format';
 import { MAIN_BAR_SIZES } from '@/engine/concrete/rebar';
@@ -10,7 +10,7 @@ export type ApplyFootingEdit = (fn: (layout: FootingLayout) => FootingLayout) =>
 const DIR_TITLE: Record<BarDir, string> = { x: 'เหล็กทิศ X (ยาวตามแกน x)', y: 'เหล็กทิศ Y (ยาวตามแกน y)' };
 
 export function FootingBarPopover({
-  dir, layout, analysis, suggested, apply,
+  dir, layout, analysis, suggested, apply, basketRecommended,
 }: {
   dir: BarDir;
   layout: FootingLayout;
@@ -18,6 +18,8 @@ export function FootingBarPopover({
   analysis: Record<BarDir, Pick<FootingDirection, 'isBottom' | 'AsReq' | 'AsProv' | 'sMax' | 'pitch' | 'band' | 'bandAsReq' | 'bandAsProv'>>;
   suggested: BarSet;
   apply: ApplyFootingEdit;
+  /** ฐานรากเสาเข็มเท่านั้น: ส่งค่านี้มาเพื่อแสดงปุ่มเหล็กตะกร้อ (true = ควรใช้ตามเกณฑ์) */
+  basketRecommended?: boolean;
 }) {
   const bars = layout[dir];
   const r = analysis[dir];
@@ -26,7 +28,7 @@ export function FootingBarPopover({
   return (
     <>
       <div className="popover-title">
-        {DIR_TITLE[dir]} <small>({r.isBottom ? 'ชั้นล่าง' : 'ชั้นที่ 2'})</small>
+        {DIR_TITLE[dir]} <small>({layout.basket ? 'ตะกร้อ ' : ''}{r.isBottom ? 'ชั้นล่าง' : 'ชั้นที่ 2'})</small>
       </div>
       <div className="popover-sub">ขนาด</div>
       <SizeChips sizes={MAIN_BAR_SIZES} value={bars.size} onPick={(size) => apply((l) => setBarSet(l, dir, { size }))} />
@@ -57,7 +59,20 @@ export function FootingBarPopover({
             วางเป็นชั้นล่าง
           </button>
         )}
+        {basketRecommended !== undefined && (
+          <button
+            type="button"
+            className="btn small"
+            title="เหล็กทั้งสองทิศงอเป็นวงปิด หุ้มผิวล่าง ผิวข้าง และผิวบน — ขาล่างและขาบนแบ่งเหล็กกันร้าวกันคนละครึ่ง"
+            onClick={() => apply((l) => setBasket(l, !l.basket))}
+          >
+            {layout.basket ? 'เลิกใช้ตะกร้อ' : 'ใช้เหล็กตะกร้อ'}
+          </button>
+        )}
       </div>
+      {basketRecommended && !layout.basket && (
+        <p className="popover-hint">เข็มต้นเดียวหรือฐานรากหนามาก ควรเสริมเหล็กแบบตะกร้อ</p>
+      )}
     </>
   );
 }

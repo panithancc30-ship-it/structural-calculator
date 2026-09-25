@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzePileCap, pileCapLoads } from './analyzePileCap';
+import { analyzePileCap, basketRecommended, pileCapLoads } from './analyzePileCap';
 import { autoPileCapLayout, pileCapDesign } from './designPileCap';
 import { pileLayout, pileReactions } from './piles';
 import type { PileCapInput } from './types';
@@ -8,7 +8,7 @@ import { validatePileCapInput } from './validate';
 const zeros = Array.from({ length: 9 }, () => ({ dx: 0, dy: 0 }));
 
 const base: PileCapInput = {
-  projectName: 't', capName: 'F1', designer: '',
+  capName: 'F1',
   cx: 30, cy: 30, ex: 0, ey: 0,
   pileShape: 'square', pileSize: 30, pileCapacity: 30, pileTension: 0,
   countMode: 'manual', pileCount: 4, rotate: false, spacing: 90, edge: 30, offsets: zeros,
@@ -144,6 +144,59 @@ describe('ออกแบบอัตโนมัติ', () => {
     expect(noFail({ ...auto, P: 20000, My: 500 }).arrangement.count).toBeGreaterThan(1);
   });
   it('เข็มกลม', () => noFail({ ...auto, pileShape: 'circle', pileSize: 40, spacing: 120, edge: 40, pileCapacity: 50, P: 200000 }));
+});
+
+describe('เหล็กเสริมแบบตะกร้อ', () => {
+  // เข็มต้นเดียวใต้เสา: ฐาน 60 × 60 (ขอบ 30 ซม.), หนา 60 ซม., ไม่มีโมเมนต์ดัด
+  const single: PileCapInput = { ...base, pileCount: 1, P: 20000, bar: 'DB12' };
+  const one = { count: 1, rotate: false };
+
+  it('เกณฑ์: เข็มต้นเดียว หรือหนาตั้งแต่ 90 ซม.', () => {
+    expect(basketRecommended(1, 50)).toBe(true);
+    expect(basketRecommended(4, 60)).toBe(false);
+    expect(basketRecommended(4, 90)).toBe(true);
+  });
+
+  it('เข็มต้นเดียวออกแบบเป็นตะกร้อ และขาล่างต้องการเหล็กกันร้าวครึ่งหนึ่ง', () => {
+    const layout = autoPileCapLayout(single, one, 60);
+    expect(layout.basket).toBe(true);
+    const a = analyzePileCap(single, one, 60, layout);
+    expect(a.basket).toBe(true);
+    expect(a.x.Mdesign).toBe(0);
+    expect(a.x.AsReq).toBeCloseTo(0.5 * 0.0018 * 60 * 60, 8);
+    expect(a.checks.filter((c) => c.status !== 'ok')).toEqual([]);
+    expect(a.checks.find((c) => c.label.includes('ตะกร้อ'))?.provided).toBe('มี');
+  });
+
+  it('ระยะเรียงเหล็กตะกร้อไม่เกิน 20 ซม.', () => {
+    const a = analyzePileCap(single, one, 60, autoPileCapLayout(single, one, 60));
+    expect(a.x.sMax).toBe(20);
+    expect(a.x.pitch).toBeLessThanOrEqual(20);
+    expect(a.y.pitch).toBeLessThanOrEqual(20);
+  });
+
+  it('ปิดตะกร้อของเข็มต้นเดียว → เตือน และเหล็กล่างต้องการเต็ม ρ·b·t', () => {
+    const layout = { ...autoPileCapLayout(single, one, 60), basket: false };
+    const a = analyzePileCap(single, one, 60, layout);
+    expect(a.x.AsReq).toBeCloseTo(0.0018 * 60 * 60, 8);
+    expect(a.checks.find((c) => c.label.includes('ตะกร้อ'))?.status).toBe('warn');
+  });
+
+  it('ฐาน 4 ต้นหนา 60 ซม. ไม่ใช้ตะกร้อ และไม่มีรายการตรวจตะกร้อ', () => {
+    const layout = autoPileCapLayout(base, four, 60);
+    expect(layout.basket).toBe(false);
+    expect(analyzePileCap(base, four, 60, layout).checks.some((c) => c.label.includes('ตะกร้อ'))).toBe(false);
+  });
+
+  it('เข็มรับแรงถอน: ขาบนของตะกร้อใช้เป็นเหล็กบน', () => {
+    const uplift: PileCapInput = { ...base, P: 5000, My: 6000, pileTension: 10, t: 90 };
+    const layout = autoPileCapLayout(uplift, four, 90);
+    expect(layout.basket).toBe(true);
+    const a = analyzePileCap(uplift, four, 90, layout);
+    const top = a.x.top ?? a.y.top;
+    expect(top).not.toBeNull();
+    expect(top!.AsProvTop).toBeCloseTo(a.x.top ? a.x.AsProv : a.y.AsProv, 8);
+  });
 });
 
 describe('ตรวจข้อมูลนำเข้า', () => {

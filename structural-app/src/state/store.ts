@@ -9,9 +9,6 @@ export type Layouts = Record<SectionKey, SectionLayout>;
 export type Edited = Record<SectionKey, boolean>;
 
 export const DEFAULT_INPUT: BeamInput = {
-  projectName: 'โครงการทดสอบ',
-  beamName: 'B1',
-  designer: '',
   b: 25,
   h: 50,
   L: 5,

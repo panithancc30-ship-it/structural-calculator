@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  BookOpen,
   Calculator,
   ChevronDown,
   ChevronUp,
@@ -31,17 +32,19 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CalcSheet, CalcSheetKind } from '@/engine/shared/types'
-import { GROUP_LABEL, KIND_LABEL, SHEET_TYPES, SHEET_TYPES_BY_GROUP, sheetType } from '@/features/registry'
+import { DesignCriteriaPage } from '@/features/design-criteria/DesignCriteriaPage'
+import { GROUP_LABEL, KIND_LABEL, SHEET_TYPES, SHEET_TYPES_BY_GROUP, inputWithTitle, sheetType } from '@/features/registry'
 import { useProjectStore } from '@/project/projectStore'
 import { exportProjectJson, importProjectJson } from '@/project/storage'
 import { ReportLayout } from '@/report/ReportLayout'
 import '@/report/concrete-sheet.css'
 import '@/report/print.css'
 
-type Tab = 'project' | 'calc' | 'report'
+type Tab = 'project' | 'criteria' | 'calc' | 'report'
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof FileText }> = [
   { id: 'project', label: 'ข้อมูลโครงการ', icon: FileText },
+  { id: 'criteria', label: 'Design Criteria', icon: BookOpen },
   { id: 'calc', label: 'รายการคำนวณ', icon: Calculator },
   { id: 'report', label: 'พิมพ์รูปเล่ม', icon: Printer },
 ]
@@ -61,6 +64,8 @@ export default function App() {
   }, [init])
 
   const type = useMemo(() => sheetType(draftKind), [draftKind])
+  /** ชื่อชิ้นส่วนในหัวรูปตามชื่อรายการเสมอ จึงไม่ต้องกรอกซ้ำในฟอร์ม */
+  const draftValue = useMemo(() => inputWithTitle(type, draftInput, draftTitle), [type, draftInput, draftTitle])
   /** หน้าจอออกแบบงานคอนกรีตมีรูปหน้าตัดที่แก้ไขได้ ต้องการพื้นที่กว้างกว่างานเหล็ก */
   const wide = type.group === 'concrete'
 
@@ -100,12 +105,12 @@ export default function App() {
         ...existing,
         kind: draftKind,
         title: draftTitle,
-        input: draftInput,
+        input: draftValue,
         remarks: draftRemarks,
         updatedAt: Date.now(),
       })
     } else {
-      const sheet = await createSheet(draftKind, draftTitle, draftInput)
+      const sheet = await createSheet(draftKind, draftTitle, draftValue)
       await upsertSheet({ ...sheet, remarks: draftRemarks })
       setActiveSheetId(sheet.id)
     }
@@ -218,6 +223,8 @@ export default function App() {
           </Card>
         )}
 
+        {tab === 'criteria' && <DesignCriteriaPage />}
+
         {tab === 'calc' && (
           <div
             className={`grid gap-6 ${
@@ -283,7 +290,7 @@ export default function App() {
                 </CardContent>
               </Card>
 
-              {type.renderForm(draftInput, setDraftInput)}
+              {type.renderForm(draftValue, setDraftInput)}
 
               <Card>
                 <CardContent className="space-y-1.5">
@@ -300,7 +307,7 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
-              {type.renderResult(draftInput)}
+              {type.renderResult(draftValue)}
 
               <Card>
                 <CardHeader>

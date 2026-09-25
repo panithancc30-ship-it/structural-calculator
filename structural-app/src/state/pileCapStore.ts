@@ -9,9 +9,7 @@ import { isBarName } from '@/engine/concrete/rebar';
 export const noOffsets = (): PileOffset[] => Array.from({ length: K.maxPiles }, () => ({ dx: 0, dy: 0 }));
 
 export const DEFAULT_PILECAP: PileCapInput = {
-  projectName: 'โครงการทดสอบ',
   capName: 'F1',
-  designer: '',
   cx: 30,
   cy: 30,
   ex: 0,
@@ -68,7 +66,10 @@ const isBarSet = (v: unknown) => {
 };
 const isLayout = (value: unknown): value is FootingLayout => {
   const v = asObj(value);
-  return !!v && isBarSet(v.x) && isBarSet(v.y) && (v.bottom === 'x' || v.bottom === 'y');
+  return (
+    !!v && isBarSet(v.x) && isBarSet(v.y) && (v.bottom === 'x' || v.bottom === 'y') &&
+    (v.basket === undefined || typeof v.basket === 'boolean')
+  );
 };
 
 export function parsePileCapProject(data: unknown): PileCapProjectFile | string {

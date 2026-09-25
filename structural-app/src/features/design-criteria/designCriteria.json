@@ -1,0 +1,616 @@
+{
+  "design_criteria": {
+    "reference_standards": {
+      "laws_and_regulations": [
+        "พระราชบัญญัติควบคุมอาคาร พ.ศ. 2522",
+        "พระราชบัญญัติควบคุมอาคาร พ.ศ. 2535 (ฉบับที่ 2)",
+        "กฎกระทรวง ฉบับที่ 6 พ.ศ. 2527",
+        "กฎกระทรวง ฉบับที่ 48 พ.ศ. 2540",
+        "กฎกระทรวง ฉบับที่ 60 พ.ศ. 2549",
+        "มาตรฐานอาคารคอนกรีตเสริมเหล็ก พ.ศ. 2517 ของวิศวกรรมสถานแห่งประเทศไทยฯ แก้ไขปรับปรุงครั้งที่ 1 พ.ศ. 2534"
+      ],
+      "other_references": [
+        "มยผ.1301-2554",
+        "มยผ.1302-2552",
+        "มยผ.1311-50",
+        "ISO 834",
+        "ASTM E119"
+      ]
+    },
+    "units": {
+      "stress": "ksc",
+      "force_per_area_si": "MPa",
+      "area_load": "kg/m2",
+      "volume_weight": "kg/m3"
+    },
+    "concrete": {
+      "mix_design": {
+        "mix_ratio_by_volume": {
+          "cement": 1,
+          "sand": 2,
+          "coarse_aggregate": 4
+        },
+        "water_cement_ratio": {
+          "minimum": 0.55,
+          "maximum": 0.60
+        },
+        "test_age": 28,
+        "test_specimen": "ลูกบาศก์"
+      },
+      "strength_and_allowable_stress": {
+        "fc_prime": {
+          "description": "กำลังอัดประลัยของคอนกรีต",
+          "value": 173,
+          "unit": "ksc"
+        },
+        "allowable_compressive_stress": {
+          "formula": "0.375 fc'",
+          "value": 64.88,
+          "unit": "ksc",
+          "regulatory_maximum": 65
+        },
+        "ultimate_design_concrete_strength": {
+          "maximum": 150,
+          "unit": "ksc"
+        },
+        "plain_concrete_allowable_compression": {
+          "formula": "0.333 fc'",
+          "maximum": 60,
+          "unit": "ksc"
+        },
+        "shear_beam": {
+          "formula": "0.29 * sqrt(fc')",
+          "value": 3.81,
+          "unit": "ksc"
+        },
+        "shear_punching": {
+          "formula": "0.53 * sqrt(fc')",
+          "value": 6.97,
+          "unit": "ksc"
+        },
+        "shear_torsion": {
+          "formula": "1.32 * sqrt(fc')",
+          "value": 17.36,
+          "unit": "ksc"
+        },
+        "elastic_modulus": {
+          "formula": "15210 * sqrt(fc')",
+          "value": 200056,
+          "unit": "ksc"
+        }
+      }
+    },
+    "reinforcing_steel": {
+      "round_bars": {
+        "grade": "SR-24",
+        "type": "เหล็กเส้นกลมผิวเรียบ",
+        "fy": {
+          "value": 2400,
+          "unit": "ksc"
+        },
+        "allowable_tensile_stress": {
+          "formula": "0.50 fy",
+          "value": 1200,
+          "unit": "ksc"
+        },
+        "elastic_modulus": {
+          "value": 2040000,
+          "unit": "ksc"
+        }
+      },
+      "deformed_bars": {
+        "grade": "SD-40",
+        "type": "เหล็กข้ออ้อย",
+        "fy": {
+          "value": 4000,
+          "unit": "ksc"
+        },
+        "allowable_tensile_stress": {
+          "formula": "0.50 fy",
+          "value": 1500,
+          "unit": "ksc"
+        },
+        "elastic_modulus": {
+          "value": 2040000,
+          "unit": "ksc"
+        }
+      },
+      "regulatory_limits": {
+        "minimum_yield_strength": {
+          "value": 2400,
+          "unit": "ksc"
+        },
+        "ultimate_design_yield_strength": {
+          "round_bars_maximum": 2400,
+          "other_reinforcement_maximum": 4000,
+          "unit": "ksc"
+        },
+        "allowable_tensile_stress": [
+          {
+            "type": "เหล็กเส้นกลมผิวเรียบ",
+            "maximum": 1200,
+            "unit": "ksc"
+          },
+          {
+            "type": "เหล็กข้ออ้อย Fy ตั้งแต่ 2400 ถึงน้อยกว่า 3500 ksc",
+            "formula": "0.50 Fy แต่ไม่เกิน 1500 ksc",
+            "maximum": 1500,
+            "unit": "ksc"
+          },
+          {
+            "type": "เหล็กข้ออ้อย Fy ตั้งแต่ 3500 ถึงน้อยกว่า 4000 ksc",
+            "maximum": 1600,
+            "unit": "ksc"
+          },
+          {
+            "type": "เหล็กข้ออ้อย Fy ตั้งแต่ 4000 ksc ขึ้นไป",
+            "maximum": 1700,
+            "unit": "ksc"
+          }
+        ],
+        "allowable_column_compression": {
+          "deformed_bars": {
+            "formula": "0.40 Fy แต่ไม่เกิน 2100 ksc",
+            "maximum": 2100,
+            "unit": "ksc"
+          },
+          "structural_steel_composite_column": {
+            "maximum": 1250,
+            "unit": "ksc"
+          },
+          "cast_iron": {
+            "maximum": 700,
+            "unit": "ksc"
+          }
+        }
+      }
+    },
+    "concrete_steel_interaction": {
+      "round_bars_SR24": {
+        "n": 10,
+        "k": 0.276,
+        "j": 0.908,
+        "R": 8.13,
+        "R_unit": "ksc"
+      },
+      "deformed_bars_SD40": {
+        "n": 10,
+        "k": 0.351,
+        "j": 0.883,
+        "R": 10.05,
+        "R_unit": "ksc"
+      },
+      "formulas": {
+        "n": "Es / Ec",
+        "k": "1 / [1 + fs / (n * fc)]",
+        "j": "1 - k / 3",
+        "R": "fc * j * k / 2"
+      }
+    },
+    "structural_steel": {
+      "grade": "TIS 1227 SM40 / JIS G3101 SS400 / ASTM A36",
+      "fy": {
+        "value": 2400,
+        "unit": "ksc"
+      },
+      "allowable_stresses": {
+        "tension": {
+          "formula": "0.60 Fy",
+          "value": 1440,
+          "unit": "ksc"
+        },
+        "compression": {
+          "formula": "0.60 Fy",
+          "value": 1440,
+          "unit": "ksc"
+        },
+        "bending": {
+          "formula": "0.60 Fy",
+          "value": 1440,
+          "unit": "ksc"
+        },
+        "shear": {
+          "formula": "0.40 Fy",
+          "value": 960,
+          "unit": "ksc"
+        }
+      },
+      "elastic_modulus": {
+        "value": 2100000,
+        "unit": "ksc"
+      },
+      "regulatory_yield_strength_without_test": {
+        "thickness_up_to_40_mm": 2400,
+        "thickness_over_40_mm": 2200,
+        "unit": "ksc"
+      }
+    },
+    "welding_electrode": {
+      "grade": "E70",
+      "allowable_shear_stress": {
+        "value": 1470,
+        "unit": "ksc"
+      }
+    },
+    "load_combinations": {
+      "ultimate_strength_design": {
+        "without_wind": {
+          "formula": "U = 1.7 DL + 2.0 LL"
+        },
+        "with_wind": [
+          {
+            "formula": "U = 0.75(1.7 DL + 2.0 LL + 2.0 WL)"
+          },
+          {
+            "formula": "U = 0.9 DL + 1.3 WL"
+          }
+        ],
+        "selection": "เลือกค่าที่มากกว่า แต่ต้องไม่ต่ำกว่ากรณีไม่คิดแรงลม",
+        "variables": {
+          "DL": "น้ำหนักบรรทุกคงที่",
+          "LL": "น้ำหนักบรรทุกจร รวมแรงกระแทก",
+          "WL": "แรงลม"
+        }
+      }
+    },
+    "live_load": {
+      "unit": "kg/m2",
+      "minimum_values": [
+        {
+          "usage": "หลังคา",
+          "value": 30
+        },
+        {
+          "usage": "กันสาดหรือหลังคาคอนกรีต",
+          "value": 100
+        },
+        {
+          "usage": "ที่พักอาศัย โรงเรียนอนุบาล ห้องน้ำ ห้องส้วม",
+          "value": 150
+        },
+        {
+          "usage": "ห้องแถว ตึกแถว อาคารชุด หอพัก โรงแรม ห้องคนไข้พิเศษ",
+          "value": 200
+        },
+        {
+          "usage": "สำนักงาน ธนาคาร",
+          "value": 250
+        },
+        {
+          "usage": "อาคารพาณิชย์ มหาวิทยาลัย วิทยาลัย โรงเรียน โรงพยาบาล",
+          "value": 300
+        },
+        {
+          "usage": "ห้องโถง บันได ช่องทางเดินของอาคารชุด หอพัก โรงแรม สำนักงาน ธนาคาร",
+          "value": 300
+        },
+        {
+          "usage": "ตลาด ห้างสรรพสินค้า หอประชุม โรงมหรสพ ภัตตาคาร ห้องประชุม ห้องอ่านหนังสือ ที่จอดรถยนต์หรือรถจักรยานยนต์",
+          "value": 400
+        },
+        {
+          "usage": "ห้องโถง บันได ช่องทางเดินของอาคารพาณิชย์ มหาวิทยาลัย วิทยาลัย โรงเรียน",
+          "value": 400
+        },
+        {
+          "usage": "คลังสินค้า โรงกีฬา พิพิธภัณฑ์ อัฒจันทร์ โรงงานอุตสาหกรรม โรงพิมพ์ ห้องเก็บเอกสารและพัสดุ",
+          "value": 500
+        },
+        {
+          "usage": "ห้องโถง บันได ช่องทางเดินของตลาด ห้างสรรพสินค้า ห้องประชุม หอประชุม โรงมหรสพ ภัตตาคาร ห้องสมุด",
+          "value": 500
+        },
+        {
+          "usage": "ห้องเก็บหนังสือของห้องสมุดหรือหอสมุด",
+          "value": 600
+        },
+        {
+          "usage": "ที่จอดหรือเก็บรถยนต์บรรทุกเปล่า",
+          "value": 800
+        }
+      ],
+      "special_condition": "หากมีน้ำหนักเครื่องจักร อุปกรณ์ หรือน้ำหนักบรรทุกอื่นมากกว่าค่าขั้นต่ำ ให้ใช้ค่าที่มากกว่าเฉพาะบริเวณนั้น"
+    },
+    "dead_load": {
+      "material_unit_weights": {
+        "unit": "kg/m3",
+        "values": [
+          {
+            "material": "คอนกรีตเสริมเหล็ก",
+            "value": 2400
+          },
+          {
+            "material": "เหล็ก",
+            "value": 7850
+          },
+          {
+            "material": "ไม้",
+            "value": 470
+          },
+          {
+            "material": "น้ำ",
+            "value": 1000
+          },
+          {
+            "material": "น้ำเสีย",
+            "value": 1380
+          },
+          {
+            "material": "ดินแห้ง",
+            "value": 1900
+          },
+          {
+            "material": "ดินเปียก",
+            "value": 2200
+          }
+        ]
+      },
+      "building_element_weights": {
+        "unit": "kg/m2",
+        "values": [
+          {
+            "element": "ผนังอิฐบล็อกรวมฉาบ หนา 10 ซม.",
+            "value": 120
+          },
+          {
+            "element": "ผนังอิฐมอญรวมฉาบ หนา 10 ซม.",
+            "value": 180
+          },
+          {
+            "element": "ผนังอิฐบล็อกมวลเบารวมฉาบ หนา 10 ซม.",
+            "value": 100
+          },
+          {
+            "element": "หลังคาเมทัลชีท",
+            "value": 7
+          },
+          {
+            "element": "หลังคากระเบื้องลอนคู่หรือลอนเล็กรวมแป",
+            "value": 15
+          },
+          {
+            "element": "หลังคากระเบื้องโมเนียหรือดินเผาเคลือบรวมระแนง",
+            "value": 50
+          },
+          {
+            "element": "โครงสร้างหลังคา",
+            "value": 50
+          },
+          {
+            "element": "พื้นแผ่นสำเร็จรวมคอนกรีตทับหน้า หนารวม 10 ซม.",
+            "value": 240
+          },
+          {
+            "element": "ผิวพื้นกระเบื้องรวมปูนทราย หนา 5 ซม.",
+            "value": 120
+          }
+        ]
+      },
+      "soil_properties": {
+        "surface_pressure": {
+          "value": 1000,
+          "unit": "kg/m2"
+        },
+        "friction_angle": {
+          "value": 20,
+          "unit": "degree"
+        }
+      }
+    },
+    "wind_load": {
+      "unit": "kg/m2",
+      "values": [
+        {
+          "height": "ไม่เกิน 10 เมตร",
+          "value": 50
+        },
+        {
+          "height": "เกิน 10 เมตร แต่ไม่เกิน 20 เมตร",
+          "value": 80
+        },
+        {
+          "height": "เกิน 20 เมตร แต่ไม่เกิน 40 เมตร",
+          "value": 120
+        },
+        {
+          "height": "เกิน 40 เมตร",
+          "value": 160
+        }
+      ],
+      "allowable_increase_with_wind": {
+        "maximum": 33.3,
+        "unit": "percent"
+      }
+    },
+    "soil_bearing_capacity": {
+      "unit": "metric ton/m2",
+      "values": [
+        {
+          "soil_type": "ดินอ่อนหรือดินถมแน่นตัวเต็มที่",
+          "value": 2
+        },
+        {
+          "soil_type": "ดินปานกลางหรือทรายร่วน",
+          "value": 5
+        },
+        {
+          "soil_type": "ดินแน่นหรือทรายแน่น",
+          "value": 10
+        },
+        {
+          "soil_type": "กรวดหรือดินดาน",
+          "value": 20
+        },
+        {
+          "soil_type": "หินดินดาน",
+          "value": 25
+        },
+        {
+          "soil_type": "หินปูนหรือหินทราย",
+          "value": 30
+        },
+        {
+          "soil_type": "หินอัคนีที่ยังไม่แปรสภาพ",
+          "value": 100
+        }
+      ]
+    },
+    "live_load_reduction": {
+      "unit": "percent",
+      "reductions_by_floor": [
+        {
+          "floor": "หลังคาหรือดาดฟ้า",
+          "reduction": 0
+        },
+        {
+          "floor": "ชั้นที่หนึ่งถัดจากหลังคาหรือดาดฟ้า",
+          "reduction": 0
+        },
+        {
+          "floor": "ชั้นที่สองถัดจากหลังคาหรือดาดฟ้า",
+          "reduction": 0
+        },
+        {
+          "floor": "ชั้นที่สามถัดจากหลังคาหรือดาดฟ้า",
+          "reduction": 10
+        },
+        {
+          "floor": "ชั้นที่สี่ถัดจากหลังคาหรือดาดฟ้า",
+          "reduction": 20
+        },
+        {
+          "floor": "ชั้นที่ห้าถัดจากหลังคาหรือดาดฟ้า",
+          "reduction": 30
+        },
+        {
+          "floor": "ชั้นที่หกถัดจากหลังคาหรือดาดฟ้า",
+          "reduction": 40
+        },
+        {
+          "floor": "ชั้นที่เจ็ดถัดจากหลังคาหรือดาดฟ้าและชั้นต่อลงไป",
+          "reduction": 50
+        }
+      ],
+      "buildings_without_reduction": [
+        "โรงมหรสพ",
+        "ห้องประชุม",
+        "หอประชุม",
+        "ห้องสมุด",
+        "หอสมุด",
+        "พิพิธภัณฑ์",
+        "อัฒจันทร์",
+        "คลังสินค้า",
+        "โรงงานอุตสาหกรรม",
+        "อาคารจอดหรือเก็บรถยนต์หรือรถจักรยานยนต์"
+      ]
+    },
+    "pile_foundation": {
+      "skin_friction_without_test": {
+        "depth_up_to_7_m": {
+          "maximum": 600,
+          "unit": "kg/m2"
+        },
+        "depth_over_7_m": {
+          "formula": "qf = 600 + 220y",
+          "unit": "kg/m2",
+          "y": "ความยาวส่วนของเสาเข็มที่ลึกเกิน 7 เมตร"
+        }
+      },
+      "allowable_capacity_with_test": {
+        "calculated_from_soil_test": {
+          "maximum_ratio_of_ultimate_load": 0.40
+        },
+        "obtained_from_load_test": {
+          "maximum_ratio_of_ultimate_load": 0.50
+        }
+      },
+      "settlement_limits": {
+        "total_settlement_after_24_hours": {
+          "maximum": 25,
+          "unit": "mm"
+        },
+        "average_settlement_rate": {
+          "maximum": 0.25,
+          "unit": "mm/hour"
+        },
+        "net_settlement_after_unloading": {
+          "maximum": 6,
+          "unit": "mm"
+        }
+      }
+    },
+    "fire_resistance_cover": {
+      "unit": "mm",
+      "reinforced_concrete": [
+        {
+          "member": "เสาสี่เหลี่ยม ด้านแคบไม่น้อยกว่า 300 มม.",
+          "minimum_cover": 40
+        },
+        {
+          "member": "เสากลมหรือเสาตั้งแต่ห้าเหลี่ยมขึ้นไป เส้นผ่านศูนย์กลางไม่น้อยกว่า 300 มม.",
+          "minimum_cover": 40
+        },
+        {
+          "member": "คานและโครงข้อหมุนคอนกรีต กว้างไม่น้อยกว่า 300 มม.",
+          "minimum_cover": 40
+        },
+        {
+          "member": "พื้นหนาไม่น้อยกว่า 115 มม.",
+          "minimum_cover": 20
+        }
+      ],
+      "prestressed_concrete": [
+        {
+          "member": "คานชนิดดึงลวดก่อน",
+          "minimum_cover": 75
+        },
+        {
+          "member": "คานดึงลวดภายหลัง กว้าง 200 มม. ปลายไม่เหนี่ยวรั้ง",
+          "minimum_cover": 115
+        },
+        {
+          "member": "คานดึงลวดภายหลัง กว้างไม่น้อยกว่า 300 มม. ปลายไม่เหนี่ยวรั้ง",
+          "minimum_cover": 65
+        },
+        {
+          "member": "คานดึงลวดภายหลัง กว้าง 200 มม. ปลายเหนี่ยวรั้ง",
+          "minimum_cover": 50
+        },
+        {
+          "member": "คานดึงลวดภายหลัง กว้างไม่น้อยกว่า 300 มม. ปลายเหนี่ยวรั้ง",
+          "minimum_cover": 45
+        },
+        {
+          "member": "พื้นดึงลวดก่อน หนาไม่น้อยกว่า 115 มม.",
+          "minimum_cover": 40
+        },
+        {
+          "member": "พื้นดึงลวดภายหลัง ขอบไม่เหนี่ยวรั้ง",
+          "minimum_cover": 40
+        },
+        {
+          "member": "พื้นดึงลวดภายหลัง ขอบเหนี่ยวรั้ง",
+          "minimum_cover": 20
+        }
+      ],
+      "structural_steel": [
+        {
+          "member": "เสาเหล็ก 150 x 150 มม.",
+          "minimum_cover": 50
+        },
+        {
+          "member": "เสาเหล็ก 200 x 200 มม.",
+          "minimum_cover": 40
+        },
+        {
+          "member": "เสาเหล็กตั้งแต่ 300 x 300 มม. ขึ้นไป",
+          "minimum_cover": 25
+        },
+        {
+          "member": "คานเหล็ก",
+          "minimum_cover": 50
+        }
+      ]
+    }
+  }
+}

@@ -1,4 +1,3 @@
-import { ACI318_WSD_FOOTING as K } from '../codes/aci318Wsd';
 import type { ColumnLocation, Sides } from './geometry';
 import type { FootingDims } from './types';
 
@@ -15,7 +14,6 @@ export interface PunchingPerimeter {
   sides: Record<keyof Sides, boolean>;
   nSides: number;
   b0: number;
-  alphaS: number;
   xg: number;
   yg: number;
   Jx: number;
@@ -81,7 +79,6 @@ export function punchingPerimeter(loc: ColumnLocation, dims: Pick<FootingDims, '
 
   return {
     d, x1, x2, y1, y2, sides, nSides, b0,
-    alphaS: nSides >= 4 ? K.alphaS4 : nSides === 3 ? K.alphaS3 : K.alphaS2,
     xg, yg, Jx, Jy, cX, cY,
     gammaX: gamma(x2 - x1, y2 - y1),
     gammaY: gamma(y2 - y1, x2 - x1),

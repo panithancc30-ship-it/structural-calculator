@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REBARS } from '../rebar';
-import { analyzeFooting, footingLoads } from './analyzeFooting';
+import { allowableBond, analyzeFooting, footingLoads } from './analyzeFooting';
 import { autoDims, autoFootingLayout, footingDims } from './designFooting';
 import { columnLocation } from './geometry';
 import { clipHalfPlane, polygonMoments, rectPolygon } from './polygon';
@@ -10,7 +9,7 @@ import type { FootingInput, FootingLayout } from './types';
 import { validateFootingInput } from './validate';
 
 const base: FootingInput = {
-  projectName: 't', footingName: 'F1', designer: '',
+  footingName: 'F1',
   cx: 30, cy: 30, position: 'center', ex: 0, ey: 0, edgeSide: 'left', cornerSide: 'bottom-left', edgeGap: 0,
   sizeMode: 'manual', B: 200, L: 200, t: 50, cover: 7.5,
   Df: 1.5, qa: 20, gammaSoil: 1.8,
@@ -100,18 +99,15 @@ describe('เฉือนทะลุ: หน้าตัดวิกฤต', ()
     const per = punchingPerimeter(columnLocation(base, dims), dims, 40);
     const b1 = 70;
     expect(per.nSides).toBe(4);
-    expect(per.alphaS).toBe(40);
     expect(per.b0).toBeCloseTo(280, 8);
     expect(per.Jx).toBeCloseTo((40 * b1 ** 3) / 6 + (b1 * 40 ** 3) / 6 + (40 * b1 * b1 ** 2) / 2, 3);
   });
   it('ตีนเป็ดชิดขอบ 3 ด้าน, ชิดมุม 2 ด้าน', () => {
     const edge = punchingPerimeter(columnLocation({ ...base, position: 'edge', edgeSide: 'left' }, dims), dims, 40);
     expect(edge.nSides).toBe(3);
-    expect(edge.alphaS).toBe(30);
     expect(edge.b0).toBeCloseTo(50 + 50 + 70, 8);
     const corner = punchingPerimeter(columnLocation({ ...base, position: 'corner', cornerSide: 'top-right' }, dims), dims, 40);
     expect(corner.nSides).toBe(2);
-    expect(corner.alphaS).toBe(20);
     expect(corner.b0).toBeCloseTo(100, 8);
   });
 });
@@ -162,10 +158,17 @@ describe('ระยะฝังเหล็ก', () => {
     expect(available).toBeCloseTo(50 - 7.5, 8);
     const excess = short.x.AsFlex / short.x.AsProv;
     const sq = Math.sqrt(240);
-    expect(ld).toBeCloseTo(Math.max(Math.max((0.06 * REBARS.DB25.area * 4000) / sq, 0.0057 * 2.5 * 4000) * excess, 30), 8);
+    // วสท.: ld = fs·db/(4u), fs = 1,700 × As ต้องการ/As ใส่, u = 3.23√f′c/db ≤ 35
+    const u = Math.min((3.23 * sq) / 2.5, 35);
+    expect(ld).toBeCloseTo(Math.max((1700 * excess * 2.5) / (4 * u), 30), 8);
     expect(ldh).toBeCloseTo(Math.max(((318 * 2.5) / sq) * (4000 / 4200) * excess, 8 * 2.5, 15), 8);
     expect(hook).toBe(true);
     expect(ok).toBe(available >= ldh);
+  });
+  it('หน่วยแรงยึดเหนี่ยว: ข้ออ้อย 3.23√f′c/db ≤ 35, เหล็กกลมครึ่งหนึ่งไม่เกิน 11 ksc', () => {
+    expect(allowableBond('DB25', 240)).toBeCloseTo((3.23 * Math.sqrt(240)) / 2.5, 8);
+    expect(allowableBond('DB12', 240)).toBe(35);
+    expect(allowableBond('RB9', 240)).toBe(11);
   });
   it('ส่วนยื่นไม่เกิน d ไม่ต้องตรวจระยะฝัง', () => {
     const stub = { ...base, B: 110, L: 110 };

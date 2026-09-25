@@ -27,7 +27,7 @@ function axis(maxValue: number) {
 
 const label = (v: number) => (Number.isInteger(v) ? String(v) : String(Number(v.toFixed(2))));
 
-/** เส้นกำลังยอมให้ P–M (0.4φ) พร้อมจุดแรงใช้งาน — หน่วย ตัน, t·m */
+/** เส้นกำลังยอมให้ P–M ตาม วสท. พร้อมจุดแรงใช้งาน — หน่วย ตัน, t·m */
 export function InteractionChart({ analysis, P }: { analysis: ColumnAnalysis; P: number }) {
   const finite = (v: number) => (Number.isFinite(v) ? v : 0);
   const series: Series[] = analysis.spiral
@@ -38,11 +38,12 @@ export function InteractionChart({ analysis, P }: { analysis: ColumnAnalysis; P:
       ];
 
   const W = 340;
-  const H = 230;
+  const H = 250;
   const L = 44;
   const R = 12;
   const T = 12;
-  const B = 34;
+  /** ขอบล่างรวมตัวเลขแกน ชื่อแกน และแถวคำอธิบายสัญลักษณ์ */
+  const B = 54;
   const xs = axis(Math.max(...series.flatMap((s) => [...s.curve.points.map((p) => p.M / 1e5), s.M / 1e5])));
   const ys = axis(Math.max(...series.map((s) => s.curve.Pmax / 1000), P / 1000));
   const sx = (mTm: number) => L + (mTm / xs.max) * (W - L - R);
@@ -74,7 +75,7 @@ export function InteractionChart({ analysis, P }: { analysis: ColumnAnalysis; P:
             {label(t)}
           </text>
         ))}
-        <text x={(L + W - R) / 2} y={H - 6} textAnchor="middle" fontSize={10}>
+        <text x={(L + W - R) / 2} y={H - B + 26} textAnchor="middle" fontSize={10}>
           M (t·m)
         </text>
         <text transform={`translate(11,${(T + H - B) / 2}) rotate(-90)`} textAnchor="middle" fontSize={10}>
@@ -97,16 +98,17 @@ export function InteractionChart({ analysis, P }: { analysis: ColumnAnalysis; P:
         </g>
       ))}
 
+      {/* คำอธิบายสัญลักษณ์เป็นแถวใต้กราฟ — เส้นกำลังผ่านได้ทุกมุมของพื้นที่กราฟ จึงไม่วางทับในกราฟ */}
       <g fontSize={9.5} fill="#222">
         {series.map((s, i) => (
-          <g key={s.key} transform={`translate(${W - R - 118},${T + 8 + i * 14})`}>
+          <g key={s.key} transform={`translate(${L + i * 100},${H - 6})`}>
             <line x1={0} x2={18} y1={-3} y2={-3} stroke={s.color} strokeWidth={1.8} strokeDasharray={s.dash} />
             <text x={23} y={0}>
               {s.name}
             </text>
           </g>
         ))}
-        <g transform={`translate(${W - R - 118},${T + 8 + series.length * 14})`}>
+        <g transform={`translate(${L + series.length * 100},${H - 6})`}>
           <circle cx={9} cy={-3} r={3.5} fill="#555" />
           <text x={23} y={0}>
             จุดแรงใช้งาน

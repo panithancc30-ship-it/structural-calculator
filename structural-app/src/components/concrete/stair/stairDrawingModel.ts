@@ -347,21 +347,37 @@ export function buildStairModel(
   if (layout.step) {
     const ds = dia('step');
     const es = cv + ds / 2;
-    // เหล็กขั้นบันไดงอตามลูกตั้งและลูกนอน ขาทั้งสองยึดลงไปถึงระดับเหล็กบนของท้องบันได
-    const waist = slope(-es);
+    // เหล็กขั้นบันไดเป็นซิกแซกเส้นเดียวตลอดช่วงลาด: จากมุมขั้นแต่ละขั้นทะแยงลงไปทางท้องบันได
+    // วางบนเหล็กล่างใต้ลูกตั้งขั้นถัดไป แล้วขึ้นไปมุมขั้นถัดไป — ขั้นที่ N คือขอบส่วนราบบน
+    // ต้นเส้นเริ่มบนส่วนราบล่างห่างลูกตั้งแรกหนึ่งลูกนอน เหมือนมีมุมขั้นที่ศูนย์
+    const eBot = cv + dB + ds / 2;
+    const dip = Math.max(es, 0.2 * T);
+    const zig: Pt[] = [{ x: Math.max(x0 - T + es, xL + cv), y: -es }];
     const nose: Pt[] = [];
-    for (let k = 1; k <= N - 1; k++) {
+    for (let k = 1; k <= N; k++) {
       const xr = x0 + (k - 1) * T;
-      const yt = k * R;
-      const S1 = { x: xr + es, y: yt - es };
-      bars.push({
-        key: 'step',
-        pts: [{ x: xr + es, y: at(waist, xr + es) }, S1, cross(flat(yt - es), waist)],
-        width: ds,
-      });
-      // เหล็กมุมขั้น — วางในมุมของเหล็กขั้นบันไดทุกขั้น
-      dots.push({ key: 'step', x: xr + es + ds, y: yt - es - ds, r: ds / 2 });
-      nose.push(S1);
+      const xs = xr + dip;
+      const bottom = { x: xs, y: soffitAt(xs) + eBot / (xs > k1 && xs < k2 ? cos : 1) };
+      const corner = { x: xr + es, y: k * R - es };
+      zig.push(bottom, corner);
+      nose.push(corner);
+    }
+    // ขอบส่วนราบบนทาบต่อไปอีกหนึ่งลูกนอน
+    zig.push({ x: Math.min(xLast + es + T, xR - cv), y: H - es });
+    bars.push({ key: 'step', pts: zig, width: ds });
+
+    // เหล็กมุม — วางในมุมด้านในของทุกจุดหักของซิกแซก ทั้งมุมขั้นและมุมที่ท้องบันได
+    for (let i = 1; i < zig.length - 1; i++) {
+      const p = zig[i];
+      const unit = (q: Pt) => {
+        const len = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+        return { x: (q.x - p.x) / len, y: (q.y - p.y) / len };
+      };
+      const a1 = unit(zig[i - 1]);
+      const a2 = unit(zig[i + 1]);
+      const bis = { x: a1.x + a2.x, y: a1.y + a2.y };
+      const len = Math.hypot(bis.x, bis.y) || 1;
+      dots.push({ key: 'step', x: p.x + (bis.x / len) * ds, y: p.y + (bis.y / len) * ds, r: ds / 2 });
     }
     if (nose.length > 0) {
       const S = nose[Math.max(0, Math.round(0.6 * (nose.length - 1)))];

@@ -64,8 +64,8 @@ export function ConcreteColumnResultView() {
                 ρg <b>{fmt(analysis.rho * 100)}</b> %
               </span>
               <span>
-                kLu/r <b>{fmt(analysis.slender.x.ratio, 1)}</b> / <b>{fmt(analysis.slender.y.ratio, 1)}</b>
-                {(analysis.slender.x.slender || analysis.slender.y.slender) && ' (เสายาว)'}
+                Lu/r <b>{fmt(Math.max(analysis.slender.x.ratio, analysis.slender.y.ratio), 1)}</b>
+                {analysis.R < 1 ? <> (เสายาว R <b>{fmt(analysis.R, 3)}</b>)</> : ' (เสาสั้น)'}
               </span>
             </div>
           </div>
@@ -148,11 +148,11 @@ export function ConcreteColumnResultView() {
             </section>
 
             <section className="card">
-              <h2 className="card-title">แผนภาพ P–M (กำลังยอมให้ 0.4φ)</h2>
+              <h2 className="card-title">แผนภาพ P–M (กำลังยอมให้ วสท.)</h2>
               <InteractionChart analysis={analysis} P={input.P} />
               <p className="hint">
-                จุดแรงใช้งานใช้โมเมนต์หลังขยายผลความชะลูด
-                {analysis.method === 'bresler' || analysis.method === 'contour'
+                {analysis.R < 1 ? 'เส้นกำลังคูณตัวคูณลดกำลังเสายาว R แล้ว' : 'เสาสั้น ไม่ลดกำลัง'}
+                {analysis.method === 'contour'
                   ? ` — แรงสองแกนตรวจด้วยวิธี ${METHOD_TH[analysis.method]}`
                   : ''}
               </p>

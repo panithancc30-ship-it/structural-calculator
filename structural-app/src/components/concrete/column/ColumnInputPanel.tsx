@@ -13,31 +13,9 @@ export function ColumnInputPanel() {
     value: input[key],
     onChange: (v: number) => setInput({ [key]: v } as Partial<ColumnInput>),
   });
-  const text = (key: 'projectName' | 'columnName' | 'designer') => ({
-    value: input[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInput({ [key]: e.target.value }),
-  });
 
   return (
     <div className="input-panel">
-      <fieldset>
-        <legend>โครงการ</legend>
-        <div className="grid2">
-          <label className="field span2">
-            <span className="field-label">ชื่อโครงการ</span>
-            <input className="text-input" {...text('projectName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ชื่อเสา</span>
-            <input className="text-input" {...text('columnName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ผู้ออกแบบ</span>
-            <input className="text-input" {...text('designer')} />
-          </label>
-        </div>
-      </fieldset>
-
       <fieldset>
         <legend>หน้าตัดเสา</legend>
         <div className="grid2">
@@ -68,7 +46,7 @@ export function ColumnInputPanel() {
           label="ความสูงเสา Lu (ช่วงที่ไม่มีคาน/พื้นยึด)"
           unit="ม."
           step={0.1}
-          hint={`ค่าอื่นกำหนดอัตโนมัติ: k = ${K.autoK.toFixed(1)}, M1/M2 = ${K.autoM1M2.toFixed(1)} (Cm = 1), βd = ${K.autoBetaD} — ค่าปลอดภัยสำหรับอาคารทั่วไป`}
+          hint={`เสายาวลดกำลังด้วย R = ${K.longColumnRA} − ${K.longColumnRB}·Lu/r (มาตรฐาน วสท. เสาที่มีคานและพื้นยึด)`}
           {...num('Lu')}
         />
       </fieldset>

@@ -28,9 +28,8 @@ export type GroundUsage = 'light' | 'medium' | 'heavy';
  * โครงสร้างต้องแบน (ไม่มี object ซ้อน) เพราะ parseSlabProject คัดค่าทีละคีย์ด้วยการเทียบ typeof
  */
 export interface SlabInput {
-  projectName: string;
+  /** ชื่อชิ้นส่วนในหัวรูป — ตั้งจากชื่อรายการ ไม่ได้กรอกเอง */
   slabName: string;
-  designer: string;
 
   slabType: SlabType;
 

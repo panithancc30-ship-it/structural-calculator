@@ -4,11 +4,13 @@ import type { CalcSheet, Project } from '../engine/shared/types'
 interface Props {
   project: Project
   sheets: CalcSheet[]
+  /** เลขหน้าแรกของเกณฑ์การออกแบบ */
+  criteriaPage: number
   /** เลขหน้าเริ่มต้นของรายการคำนวณแผ่นแรก */
   firstSheetPage: number
 }
 
-export function TableOfContents({ project, sheets, firstSheetPage }: Props) {
+export function TableOfContents({ project, sheets, criteriaPage, firstSheetPage }: Props) {
   return (
     <section className="report-page">
       <div className="sheet-header">
@@ -22,6 +24,12 @@ export function TableOfContents({ project, sheets, firstSheetPage }: Props) {
         <span>รายการ</span>
         <span className="toc-dots" />
         <span>หน้า</span>
+      </div>
+
+      <div className="toc-row">
+        <span>เกณฑ์การออกแบบ (Design Criteria)</span>
+        <span className="toc-dots" />
+        <span>{criteriaPage}</span>
       </div>
 
       {sheets.length === 0 && <div>— ยังไม่มีรายการคำนวณในเล่มนี้ —</div>}

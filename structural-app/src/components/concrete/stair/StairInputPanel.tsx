@@ -35,10 +35,6 @@ export function StairInputPanel({ dims }: { dims: StairDims | null }) {
     value: input[key],
     onChange: (v: number) => setInput({ [key]: v } as Partial<StairInput>),
   });
-  const text = (key: 'projectName' | 'stairName' | 'levels' | 'designer') => ({
-    value: input[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInput({ [key]: e.target.value }),
-  });
 
   const shapeOk = [input.riser, input.tread, input.risers].every((v) => Number.isFinite(v) && v > 0);
   const p = shapeOk ? stairProfile(input) : null;
@@ -48,30 +44,17 @@ export function StairInputPanel({ dims }: { dims: StairDims | null }) {
   return (
     <div className="input-panel">
       <fieldset>
-        <legend>โครงการ</legend>
-        <div className="grid2">
-          <label className="field span2">
-            <span className="field-label">ชื่อโครงการ</span>
-            <input className="text-input" {...text('projectName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ชื่อบันได</span>
-            <input className="text-input" {...text('stairName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ช่วงระดับ</span>
-            <input className="text-input" placeholder="ชั้น 1 – ชานพัก" {...text('levels')} />
-          </label>
-          <label className="field span2">
-            <span className="field-label">ผู้ออกแบบ</span>
-            <input className="text-input" {...text('designer')} />
-          </label>
-        </div>
-      </fieldset>
-
-      <fieldset>
         <legend>ขั้นบันได</legend>
         <div className="grid2">
+          <label className="field span2">
+            <span className="field-label">ช่วงระดับ</span>
+            <input
+              className="text-input"
+              placeholder="ชั้น 1 – ชานพัก"
+              value={input.levels}
+              onChange={(e) => setInput({ levels: e.target.value })}
+            />
+          </label>
           <NumberField label="ลูกตั้ง R" unit="ซม." step={0.5} {...num('riser')} />
           <NumberField label="ลูกนอน T" unit="ซม." step={0.5} {...num('tread')} />
           <NumberField

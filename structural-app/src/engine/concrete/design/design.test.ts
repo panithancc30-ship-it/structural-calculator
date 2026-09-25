@@ -10,7 +10,6 @@ import { shearTorsionDemand } from './shearTorsion';
 import { stirrupSpacing } from './stirrupConfig';
 
 const base: BeamInput = {
-  projectName: 'test', beamName: 'B1', designer: '',
   b: 25, h: 50, L: 5, cover: 3,
   fc: 240, fy: 4000, fyv: 2400,
   M: 8000, V: 6000, T: 500,
@@ -77,6 +76,18 @@ describe('เฉือน + บิด (คำนวณมือ d = 43.543)', ()
     expect(d2.ats).toBe(0);
     expect(d2.Al).toBe(0);
     expect(d2.vc).toBeCloseTo(0.29 * Math.sqrt(240), 6);
+  });
+});
+
+describe('เฉือนสูงสุด วสท.', () => {
+  it('v ≤ 1.32√f′c — เกินต้องขยายหน้าตัด', () => {
+    const p = wsdParams(240, 4000, 2400);
+    const vMax = 1.32 * Math.sqrt(240);
+    const ok = shearTorsionDemand({ ...base, T: 0, V: 0.99 * vMax * 25 * 43.5 }, p, 43.5, 0.9);
+    expect(ok.vMax).toBeCloseTo(vMax, 8);
+    expect(ok.shearSectionOk).toBe(true);
+    const over = shearTorsionDemand({ ...base, T: 0, V: 1.01 * vMax * 25 * 43.5 }, p, 43.5, 0.9);
+    expect(over.shearSectionOk).toBe(false);
   });
 });
 

@@ -62,6 +62,11 @@ export interface SheetTypeDef {
   label: string
   /** ใช้ตั้งชื่อรายการเริ่มต้น เช่น "คานเหล็ก SB1" */
   titlePrefix: string
+  /**
+   * ช่องในข้อมูลนำเข้า (file.input) ที่เก็บชื่อชิ้นส่วนสำหรับหัวรูป เช่น SECTION C1
+   * ค่านี้ไม่ให้กรอกเอง — ตั้งจากชื่อรายการด้วย inputWithTitle
+   */
+  nameKey?: string
   icon: typeof Slash
   defaultInput: unknown
   /** คำบรรยายสั้น ๆ สำหรับตัวเลือกชนิดรายการ */
@@ -141,6 +146,7 @@ export const SHEET_TYPES: SheetTypeDef[] = [
     group: 'concrete',
     label: 'เสา คสล.',
     titlePrefix: 'เสา คสล. C',
+    nameKey: 'columnName',
     icon: Square,
     defaultInput: DEFAULT_CONCRETE_COLUMN_INPUT,
     description: 'เสาปลอกเดี่ยว / ปลอกเกลียว พร้อมแผนภาพ P–M และผลความชะลูด',
@@ -157,6 +163,7 @@ export const SHEET_TYPES: SheetTypeDef[] = [
     group: 'concrete',
     label: 'ฐานรากแผ่',
     titlePrefix: 'ฐานราก F',
+    nameKey: 'footingName',
     icon: Box,
     defaultInput: DEFAULT_CONCRETE_FOOTING_INPUT,
     description: 'หาขนาดฐานรากให้อัตโนมัติ ตรวจแรงดันดิน เฉือนทะลุ และเสาเยื้องศูนย์',
@@ -173,6 +180,7 @@ export const SHEET_TYPES: SheetTypeDef[] = [
     group: 'concrete',
     label: 'ฐานรากเสาเข็ม',
     titlePrefix: 'ฐานรากเข็ม F',
+    nameKey: 'capName',
     icon: Grid2x2,
     defaultInput: DEFAULT_CONCRETE_PILECAP_INPUT,
     description: 'จัดกลุ่มเข็มให้อัตโนมัติ คำนวณแรงในเข็มแต่ละต้น รวมระยะเยื้องหลังตอก',
@@ -189,6 +197,7 @@ export const SHEET_TYPES: SheetTypeDef[] = [
     group: 'concrete',
     label: 'พื้น คสล.',
     titlePrefix: 'พื้น คสล. S',
+    nameKey: 'slabName',
     icon: Layers,
     defaultInput: DEFAULT_CONCRETE_SLAB_INPUT,
     description: 'พื้นหล่อในที่ ทางเดียว สองทาง พื้นยื่น และพื้นวางบนดิน — หาความหนาและจัดเหล็กให้จากน้ำหนักบรรทุก',
@@ -205,6 +214,7 @@ export const SHEET_TYPES: SheetTypeDef[] = [
     group: 'concrete',
     label: 'บันได คสล.',
     titlePrefix: 'บันได คสล. ST',
+    nameKey: 'stairName',
     icon: DoorStairwell,
     defaultInput: DEFAULT_CONCRETE_STAIR_INPUT,
     description:
@@ -223,6 +233,29 @@ export function sheetType(kind: CalcSheetKind): SheetTypeDef {
   const found = SHEET_TYPES.find((t) => t.kind === kind)
   if (!found) throw new Error(`ไม่รู้จักชนิดรายการคำนวณ: ${kind}`)
   return found
+}
+
+/**
+ * ชื่อชิ้นส่วน = ชื่อรายการที่ตัดชื่อชนิดข้างหน้าออก
+ * เช่น "เสา คสล. C1 ชั้น 2" → "C1 ชั้น 2", "ฐานรากแผ่ F1" → "F1", "C3" → "C3"
+ */
+export function markFromTitle(type: Pick<SheetTypeDef, 'label' | 'titlePrefix'>, title: string): string {
+  const t = title.trim()
+  const words = [type.label, type.titlePrefix.replace(/\s*[A-Za-z]+$/, '')].sort((a, b) => b.length - a.length)
+  const hit = words.find((w) => t.startsWith(w))
+  return (hit ? t.slice(hit.length) : t).trim()
+}
+
+/**
+ * ใส่ชื่อชิ้นส่วนจากชื่อรายการลงในข้อมูลรายการ ใช้ทั้งหน้าจอออกแบบและรูปเล่ม
+ * คืนตัวเดิมเมื่อชื่อตรงกันอยู่แล้ว เพื่อไม่ให้ store ของงานคอนกรีตโหลดข้อมูลซ้ำ
+ */
+export function inputWithTitle(type: SheetTypeDef, input: unknown, title: string): unknown {
+  const file = input as { input?: Record<string, unknown> } | null
+  if (!type.nameKey || !file?.input) return input
+  const mark = markFromTitle(type, title)
+  if (file.input[type.nameKey] === mark) return input
+  return { ...file, input: { ...file.input, [type.nameKey]: mark } }
 }
 
 export const KIND_LABEL = Object.fromEntries(

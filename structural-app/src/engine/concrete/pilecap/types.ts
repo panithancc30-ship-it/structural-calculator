@@ -15,9 +15,8 @@ export interface PileOffset {
  * My บวก → เข็มด้าน +x รับแรงมากขึ้น, Mx บวก → เข็มด้าน +y รับแรงมากขึ้น
  */
 export interface PileCapInput {
-  projectName: string;
+  /** ชื่อชิ้นส่วนในหัวรูป — ตั้งจากชื่อรายการ ไม่ได้กรอกเอง */
   capName: string;
-  designer: string;
 
   /** ขนาดเสา/ตอม่อ ตามแกน x และ y */
   cx: number;

@@ -5,9 +5,7 @@ import { CORNER_SIDES, EDGE_SIDES, POSITIONS, SIZE_MODES, validateFootingInput }
 import { isBarName } from '@/engine/concrete/rebar';
 
 export const DEFAULT_FOOTING: FootingInput = {
-  projectName: 'โครงการทดสอบ',
   footingName: 'F1',
-  designer: '',
   cx: 30,
   cy: 30,
   position: 'center',

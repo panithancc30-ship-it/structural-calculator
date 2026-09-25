@@ -48,7 +48,8 @@ export function barSetText(a: PileCapAnalysis, dir: BarDir): string {
   return `${r.count}-${r.size} @${cmToM(Math.floor(r.pitch * 2) / 2)}`;
 }
 
-export const layerText = (a: PileCapAnalysis, dir: BarDir) => (a[dir].isBottom ? 'ชั้นล่าง' : 'ชั้นที่ 2');
+export const layerText = (a: PileCapAnalysis, dir: BarDir) =>
+  `${a.basket ? 'ตะกร้อ ' : ''}${a[dir].isBottom ? 'ชั้นล่าง' : 'ชั้นที่ 2'}`;
 
 export function pileText(input: PileCapInput): string {
   const size = cmToM(input.pileSize);
@@ -363,15 +364,19 @@ export function buildSectionModel(input: PileCapInput, a: PileCapAnalysis, dir: 
   const pileBreaks = pileXs.map((x) => zigzag(x - D / 2 - 0.5 * u, x + D / 2 + 0.5 * u, pileStub, pileZig)).join(' ');
   ext.add({ x1: pileXs[0] - D / 2 - 0.5 * u, y1: 0, x2: pileXs[pileXs.length - 1] + D / 2 + 0.5 * u, y2: pileStub + pileZig });
 
-  // ---- เหล็ก: งอขอขึ้นเมื่อระยะฝังตรงไม่พอ
+  // ---- เหล็ก: งอขอขึ้นเมื่อระยะฝังตรงไม่พอ, ตะกร้อเป็นวงปิด (ขาบนอยู่ระยะเดียวกับขาล่างวัดจากผิวบน)
   const db = geom.db[dir];
   const z = geom.z[dir];
   const hook = a[dir].anchorage?.hook ? Math.max(0, Math.min(12 * db, t - z - cover)) : 0;
   const bx1 = -span / 2 + cover + db / 2;
   const bx2 = span / 2 - cover - db / 2;
-  const alongPath = hook > 0 ? `M${bx1},${-(z + hook)} V${-z} H${bx2} V${-(z + hook)}` : `M${bx1},${-z} H${bx2}`;
+  const alongPath = a.basket
+    ? `M${bx1},${-z} H${bx2} V${-(t - z)} H${bx1} Z`
+    : hook > 0 ? `M${bx1},${-(z + hook)} V${-z} H${bx2} V${-(z + hook)}` : `M${bx1},${-z} H${bx2}`;
   const dotR = Math.max(geom.db[other] / 2, 0.3 * u);
   const dots = geom.positions[other].map((s) => ({ x: s, y: -geom.z[other], r: dotR }));
+  // ตะกร้อ: ขาบนของเหล็กอีกทิศตัดผ่านรูปเป็นจุดใต้ผิวบน — เพิ่มท้ายรายการ ป้ายเหล็กยังชี้จุดชั้นล่าง
+  const topDots = a.basket ? geom.positions[other].map((s) => ({ x: s, y: -(t - geom.z[other]), r: dotR })) : [];
 
   // ---- ป้ายเหล็กข้างฐานราก: เส้นชี้เฉียงจากเหล็กออกนอกขอบ หักเป็นเส้นระดับใต้ข้อความ
   const sideLen = Math.max(negLen, posLen);
@@ -454,7 +459,7 @@ export function buildSectionModel(input: PileCapInput, a: PileCapAnalysis, dir: 
   return {
     denom, u, sizes, dir, span, t, embed: input.embed, pileSize: D, pileStub, piles, pileBreaks,
     groundPath, groundHatch, pedestalPath, breakPath,
-    alongPath, alongWidth: Math.max(db, 0.35 * u), dots, leaders, dims, extensions: extParts.join(' '), arrow,
+    alongPath, alongWidth: Math.max(db, 0.35 * u), dots: [...dots, ...topDots], leaders, dims, extensions: extParts.join(' '), arrow,
     lengthLabel, notes, title, view, sizeMm: sizeMm(view, denom),
   };
 }

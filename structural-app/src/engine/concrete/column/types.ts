@@ -8,9 +8,8 @@ export type ColumnShape = 'rect' | 'circle';
  * แกน x ตามด้าน b, แกน y ตามด้าน h — Mx ดัดรอบแกน x (ด้าน h รับอัด/ดึง), My ดัดรอบแกน y
  */
 export interface ColumnInput {
-  projectName: string;
+  /** ชื่อชิ้นส่วนในหัวรูป — ตั้งจากชื่อรายการ ไม่ได้กรอกเอง */
   columnName: string;
-  designer: string;
 
   shape: ColumnShape;
   b: number;

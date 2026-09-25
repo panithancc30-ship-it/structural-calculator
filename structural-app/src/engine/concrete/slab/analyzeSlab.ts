@@ -6,8 +6,8 @@ import type { BarDir } from '../footing/types';
 import { fmt } from '../format';
 import { REBARS } from '../rebar';
 import type { CalcStep, CheckItem, CheckStatus, Face, SupportCondition } from '../types';
-import { FACES, slabGeometry, spanOf, supportConditionOf, type SlabGeometry } from './geometry';
-import { beamReaction, slabLoads, stripMoments, stripShear, type SlabLoads, type StripMoments } from './loads';
+import { FACES, slabGeometry, supportConditionOf, type SlabGeometry } from './geometry';
+import { beamReaction, slabLoads, stripDemand, type SlabLoads, type StripMoments } from './loads';
 import type { SlabDims, SlabInput, SlabLayout } from './types';
 
 const FACE_TH: Record<Face, string> = { bottom: 'ล่าง', top: 'บน' };
@@ -134,15 +134,7 @@ function directionOf(
   p: WsdParams,
   dir: BarDir,
 ): SlabDirection {
-  const span = spanOf(dims, dir);
-  const support = supportConditionOf(input, dir);
-  const w = loads.share[dir];
-  const flexural = input.slabType !== 'onGround' && w > 0;
-  const moments = flexural
-    ? stripMoments(w, span, support)
-    : { pos: 0, negEnd: 0, negInt: 0, divisors: { pos: null, negEnd: null, negInt: null } };
-
-  const V = flexural ? stripShear(w, span, support) : 0;
+  const { span, support, w, moments, V } = stripDemand(input, loads, dir);
   const dForShear = Math.max(geom.d.bottom[dir], geom.d.top[dir]);
   const vc = K.oneWayVcCoef * Math.sqrt(input.fc);
 
@@ -178,7 +170,8 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
     okIf(dims.t + 1e-9 >= hMin.required, 'warn'));
 
   // ---------- 2. ดัดและเหล็กเสริม ----------
-  if (input.slabType !== 'onGround') {
+  // ตารางวิธีที่ 2 ของพื้นสองทางไม่มีเงื่อนไขนี้
+  if (input.slabType !== 'onGround' && !loads.twoWay) {
     const ll = loads.wLive;
     const dl = loads.wDead;
     push('flexure', `น้ำหนักจร ≤ ${K.liveToDeadLimit}×น้ำหนักคงที่ (เงื่อนไขใช้สัมประสิทธิ์ 8.3.3)`,
@@ -246,11 +239,12 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
     { label: 'h ขั้นต่ำ', formula: hMin.label, value: `${fmt(hMin.required, 1)} ซม.`, print: true },
   ];
 
-  if (loads.splitRatio !== null) {
+  if (loads.twoWay) {
+    const disc = loads.twoWay.caseNo - 1;
     steps.push({
-      label: 'แบ่งน้ำหนักสองทาง',
-      formula: 'wx = w·ly⁴/(lx⁴+ly⁴) (Rankine–Grashof)',
-      value: `wx ${fmt(loads.share.x, 0)}, wy ${fmt(loads.share.y, 0)} กก./ตร.ม.`,
+      label: 'พื้นสองทาง วิธีที่ 2',
+      formula: `m = S/L, กรณี ${loads.twoWay.caseNo} (ขอบไม่ต่อเนื่อง ${disc} ด้าน)`,
+      value: `m = ${fmt(loads.twoWay.m, 2)}`,
       print: true,
     });
   }
@@ -258,14 +252,22 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   for (const r of dirs) {
     if (r.w <= 0 || input.slabType === 'onGround') continue;
     const d = r.moments.divisors;
-    const parts = [
-      d.pos !== null ? `M+ = w·L²/${d.pos}` : null,
-      d.negEnd !== null ? `M−ริม = w·L²/${d.negEnd}` : null,
-      d.negInt !== null ? `M−ใน = w·L²/${d.negInt}` : null,
-    ].filter(Boolean);
+    const c = r.moments.coefs;
+    const parts = c
+      ? [
+          c.pos !== null ? `M+ = ${fmt(c.pos, 3)}·w·S²` : null,
+          c.negEnd !== null ? `M−ขอบไม่ต่อเนื่อง = ${fmt(c.negEnd, 3)}·w·S²` : null,
+          c.negInt !== null ? `M−ขอบต่อเนื่อง = ${fmt(c.negInt, 3)}·w·S²` : null,
+        ]
+      : [
+          d.pos !== null ? `M+ = w·L²/${d.pos}` : null,
+          d.negEnd !== null ? `M−ริม = w·L²/${d.negEnd}` : null,
+          d.negInt !== null ? `M−ใน = w·L²/${d.negInt}` : null,
+        ];
+    const L = c ? `S = ${fmt(Math.min(dims.lx, dims.ly) / 100, 2)} ม.` : `L = ${fmt(r.span / 100, 2)} ม.`;
     steps.push({
       label: `โมเมนต์${DIR_TH[r.dir]}`,
-      formula: `${parts.join(', ')} (L = ${fmt(r.span / 100, 2)} ม.)`,
+      formula: `${parts.filter(Boolean).join(', ')} (${L})`,
       value: `${tm(r.moments.pos)} / ${tm(Math.max(r.moments.negEnd, r.moments.negInt))} t·m/ม.`,
       print: true,
     });
@@ -277,7 +279,9 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
     });
     steps.push({
       label: `ปฏิกิริยาลงคาน${DIR_TH[r.dir]}`,
-      formula: 'w·L/2 ต่อความยาวคาน 1 ม.',
+      formula: loads.twoWay
+        ? loads.shortDir === r.dir ? 'w·S/3·(3 − m²)/2 (คานด้านยาว)' : 'w·S/3 (คานด้านสั้น)'
+        : 'w·L/2 ต่อความยาวคาน 1 ม.',
       value: `${fmt(r.reaction, 0)} กก./ม.`,
       print: true,
     });

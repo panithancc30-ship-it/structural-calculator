@@ -20,6 +20,10 @@ const NOTES = [
   PILE_LENGTH_NOTE,
 ]
 
+const BASKET_NOTE =
+  'เหล็กเสริมแบบตะกร้อ: เหล็กทั้งสองทิศงอเป็นวงปิดหุ้มผิวล่าง ผิวข้าง และผิวบน ต่อทาบที่ผิวบน ' +
+  'เหล็กกันร้าว ρ·b·t แบ่งให้ขาล่างและขาบนขาละครึ่ง'
+
 interface Analyzed {
   input: PileCapInput
   analysis: PileCapAnalysis
@@ -112,7 +116,7 @@ export function ConcretePileCapSheet({ project, title, input, remarks, pageNumbe
       checks={analysis.checks}
       steps={analysis.steps.filter((s) => s.print)}
       status={analysis.status}
-      notes={NOTES}
+      notes={analysis.basket ? [...NOTES, BASKET_NOTE] : NOTES}
       remarks={remarks}
       pageNumber={pageNumber}
       totalPages={totalPages}

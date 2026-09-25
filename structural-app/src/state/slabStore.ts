@@ -7,9 +7,7 @@ import { EDGE_SUPPORTS, GROUND_USAGES, SIZE_MODES, SLAB_TYPES, validateSlabInput
 import type { Face } from '@/engine/concrete/types';
 
 export const DEFAULT_SLAB: SlabInput = {
-  projectName: 'โครงการทดสอบ',
   slabName: 'S1',
-  designer: '',
   slabType: 'twoWay',
   lx: 400,
   ly: 500,

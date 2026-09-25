@@ -19,31 +19,9 @@ export function InputPanel() {
     value: input[key],
     onChange: (v: number) => setInput({ [key]: v } as Partial<BeamInput>),
   });
-  const text = (key: 'projectName' | 'beamName' | 'designer') => ({
-    value: input[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInput({ [key]: e.target.value }),
-  });
 
   return (
     <div className="input-panel">
-      <fieldset>
-        <legend>โครงการ</legend>
-        <div className="grid2">
-          <label className="field span2">
-            <span className="field-label">ชื่อโครงการ</span>
-            <input className="text-input" {...text('projectName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ชื่อคาน</span>
-            <input className="text-input" {...text('beamName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ผู้ออกแบบ</span>
-            <input className="text-input" {...text('designer')} />
-          </label>
-        </div>
-      </fieldset>
-
       <fieldset>
         <legend>ขนาดคาน</legend>
         <div className="grid2">

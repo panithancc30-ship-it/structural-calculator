@@ -14,7 +14,7 @@ import { CheckTable } from '@/components/concrete/results/CheckTable'
 import { StatusBadge } from '@/components/concrete/results/StatusBadge'
 import type { BarDir } from '@/engine/concrete/footing/types'
 import { fmt } from '@/engine/concrete/format'
-import { analyzePileCap, type PileCapAnalysis } from '@/engine/concrete/pilecap/analyzePileCap'
+import { analyzePileCap, basketRecommended, type PileCapAnalysis } from '@/engine/concrete/pilecap/analyzePileCap'
 import { autoPileCapLayout, pileCapDesign } from '@/engine/concrete/pilecap/designPileCap'
 import { validatePileCapInput } from '@/engine/concrete/pilecap/validate'
 import { usePileCapStore } from '@/state/pileCapStore'
@@ -224,6 +224,7 @@ export function ConcretePileCapResultView() {
                       analysis={analysis}
                       suggested={suggested[pop.sel.pick.dir]}
                       apply={(fn) => editLayout(fn)}
+                      basketRecommended={basketRecommended(analysis.loads.piles.nominal.length, analysis.dims.t)}
                     />
                   </div>
                 )}

@@ -194,7 +194,7 @@ export function analyzeSection(
   }
 
   const s = layout.stirrup.spacing;
-  push('shear', 'v − vc (ksc)', `≤ ${fmt(shear.vExcessMax)}`, fmt(shear.v - shear.vc), okIf(shear.shearSectionOk));
+  push('shear', 'v (ksc)', `≤ ${fmt(shear.vMax)}`, fmt(shear.v), okIf(shear.shearSectionOk));
   if (!shear.torsionNeglected) {
     push('shear', 'vt (ksc)', `≤ ${fmt(shear.vtMax)}`, fmt(shear.vt), okIf(shear.torsionSectionOk));
   }

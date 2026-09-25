@@ -34,10 +34,6 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
     value: input[key],
     onChange: (v: number) => setInput({ [key]: v } as Partial<SlabInput>),
   });
-  const text = (key: 'projectName' | 'slabName' | 'designer') => ({
-    value: input[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInput({ [key]: e.target.value }),
-  });
 
   const onGround = input.slabType === 'onGround';
   const cantilever = input.slabType === 'cantilever';
@@ -63,24 +59,6 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
 
   return (
     <div className="input-panel">
-      <fieldset>
-        <legend>โครงการ</legend>
-        <div className="grid2">
-          <label className="field span2">
-            <span className="field-label">ชื่อโครงการ</span>
-            <input className="text-input" {...text('projectName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ชื่อพื้น</span>
-            <input className="text-input" {...text('slabName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ผู้ออกแบบ</span>
-            <input className="text-input" {...text('designer')} />
-          </label>
-        </div>
-      </fieldset>
-
       <fieldset>
         <legend>ชนิดพื้น</legend>
         <div className="grid2">

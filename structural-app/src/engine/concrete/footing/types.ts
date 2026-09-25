@@ -14,9 +14,8 @@ export type BarDir = 'x' | 'y';
  * My บวก → แรงดันดินด้าน +x เพิ่มขึ้น, Mx บวก → ด้าน +y เพิ่มขึ้น
  */
 export interface FootingInput {
-  projectName: string;
+  /** ชื่อชิ้นส่วนในหัวรูป — ตั้งจากชื่อรายการ ไม่ได้กรอกเอง */
   footingName: string;
-  designer: string;
 
   /** ขนาดเสา/ตอม่อ ตามแกน x และ y */
   cx: number;
@@ -69,4 +68,9 @@ export interface FootingLayout {
   y: BarSet;
   /** ทิศของเหล็กชั้นล่างสุด */
   bottom: BarDir;
+  /**
+   * เหล็กเสริมแบบตะกร้อ (ฐานรากเสาเข็มเท่านั้น) — เหล็กทั้งสองทิศงอเป็นวงปิด หุ้มผิวล่าง ผิวข้าง และผิวบน
+   * ไม่มีค่า = ไม่ใช้ (ไฟล์เก่าและฐานรากแผ่)
+   */
+  basket?: boolean;
 }

@@ -15,7 +15,6 @@ function importFromColumn(): Partial<FootingInput> {
   const { input } = useColumnStore.getState();
   const side = Math.round(input.D * Math.sqrt(Math.PI / 4));
   return {
-    footingName: `F-${input.columnName || 'C1'}`,
     cx: input.shape === 'rect' ? input.b : side,
     cy: input.shape === 'rect' ? input.h : side,
     P: input.P,
@@ -31,32 +30,10 @@ export function FootingInputPanel({ dims }: { dims: FootingDims | null }) {
     value: input[key],
     onChange: (v: number) => setInput({ [key]: v } as Partial<FootingInput>),
   });
-  const text = (key: 'projectName' | 'footingName' | 'designer') => ({
-    value: input[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInput({ [key]: e.target.value }),
-  });
   const flush = input.position === 'edge' || input.position === 'corner';
 
   return (
     <div className="input-panel">
-      <fieldset>
-        <legend>โครงการ</legend>
-        <div className="grid2">
-          <label className="field span2">
-            <span className="field-label">ชื่อโครงการ</span>
-            <input className="text-input" {...text('projectName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ชื่อฐานราก</span>
-            <input className="text-input" {...text('footingName')} />
-          </label>
-          <label className="field">
-            <span className="field-label">ผู้ออกแบบ</span>
-            <input className="text-input" {...text('designer')} />
-          </label>
-        </div>
-      </fieldset>
-
       <fieldset>
         <legend>เสา / ตอม่อ</legend>
         <div className="grid2">

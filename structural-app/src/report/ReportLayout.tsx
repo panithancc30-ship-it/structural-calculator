@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
-import { sheetType } from '../features/registry'
+import { CRITERIA_PRINT_PAGES } from '../features/design-criteria/criteriaModel'
+import { DesignCriteriaSheets } from '../features/design-criteria/DesignCriteriaSheets'
+import { inputWithTitle, sheetType } from '../features/registry'
 import type { CalcSheet, Project } from '../engine/shared/types'
 import { CoverPage } from './CoverPage'
 import {
@@ -16,11 +18,12 @@ interface Props {
   sheets: CalcSheet[]
 }
 
-/** หน้าปก + สารบัญ = 2 หน้า รายการคำนวณเริ่มหน้า 3 */
-const FIRST_SHEET_PAGE = 3
+/** หน้าปก + สารบัญ = 2 หน้า ตามด้วยเกณฑ์การออกแบบ แล้วจึงเป็นรายการคำนวณ */
+const CRITERIA_FIRST_PAGE = 3
+const FIRST_SHEET_PAGE = CRITERIA_FIRST_PAGE + CRITERIA_PRINT_PAGES.length
 
 export function ReportLayout({ project, sheets }: Props) {
-  const totalPages = sheets.length + 2
+  const totalPages = FIRST_SHEET_PAGE - 1 + sheets.length
   const [fit, setFit] = useState<FitResult[]>([])
 
   useEffect(() => {
@@ -63,13 +66,19 @@ export function ReportLayout({ project, sheets }: Props) {
 
       <div className="report-root">
         <CoverPage project={project} />
-        <TableOfContents project={project} sheets={sheets} firstSheetPage={FIRST_SHEET_PAGE} />
+        <TableOfContents
+          project={project}
+          sheets={sheets}
+          criteriaPage={CRITERIA_FIRST_PAGE}
+          firstSheetPage={FIRST_SHEET_PAGE}
+        />
+        <DesignCriteriaSheets project={project} firstPage={CRITERIA_FIRST_PAGE} totalPages={totalPages} />
         {sheets.map((sheet, index) => (
           <Fragment key={sheet.id}>
             {sheetType(sheet.kind).renderSheet({
               project,
               title: sheet.title,
-              input: sheet.input,
+              input: inputWithTitle(sheetType(sheet.kind), sheet.input, sheet.title),
               remarks: sheet.remarks,
               pageNumber: FIRST_SHEET_PAGE + index,
               totalPages,

@@ -88,7 +88,10 @@ export function StairBarPopover({ barKey, layout, demand, suggested, apply }: Pr
       </div>
 
       {nominal ? (
-        <p className="popover-hint">เหล็กขั้นบันไดงอตามลูกตั้งและลูกนอน พร้อมเหล็กมุมขั้นขนาดเดียวกันทุกขั้น</p>
+        <p className="popover-hint">
+          เหล็กขั้นบันไดทะแยงจากมุมขั้นลงไปทางท้องบันได แล้วขึ้นไปมุมขั้นถัดไปเป็นซิกแซก
+          พร้อมเหล็กมุมขนาดเดียวกันทุกจุดหัก
+        </p>
       ) : (
         <p className="popover-hint">
           As ต้องการ <strong>{fmt(demand.AsReq)}</strong> ใส่จริง <strong>{fmt(demand.AsProv)}</strong> ซม.²/ม.

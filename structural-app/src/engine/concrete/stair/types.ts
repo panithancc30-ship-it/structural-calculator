@@ -23,11 +23,10 @@ export type StairUsage = 'residential' | 'public';
  * โครงสร้างต้องแบน (ไม่มี object ซ้อน) เพราะ parseStairProject คัดค่าทีละคีย์ด้วยการเทียบ typeof
  */
 export interface StairInput {
-  projectName: string;
+  /** ชื่อชิ้นส่วนในหัวรูป — ตั้งจากชื่อรายการ ไม่ได้กรอกเอง */
   stairName: string;
   /** ช่วงระดับของบันไดช่วงนี้ เช่น "ชั้น 1 – ชานพัก" ใช้ต่อท้ายชื่อรูปตัด */
   levels: string;
-  designer: string;
   usage: StairUsage;
 
   /** ลูกตั้ง (ซม.) */

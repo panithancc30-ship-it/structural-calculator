@@ -11,10 +11,8 @@ import { validateStairInput } from './validate';
 
 /** ตรงกับแบบตัวอย่าง ST (ชานพัก – ชั้น 2): 8 ลูกตั้ง @0.175, 7 ลูกนอน @0.25, ราบล่าง 1.15 ราบบน 0.60 */
 const base: StairInput = {
-  projectName: 'ทดสอบ',
   stairName: 'ST1',
   levels: 'ชานพัก – ชั้น 2',
-  designer: '',
   usage: 'residential',
   riser: 17.5,
   tread: 25,

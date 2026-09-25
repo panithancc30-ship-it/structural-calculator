@@ -8,3 +8,7 @@ export function setBarSet(layout: FootingLayout, dir: BarDir, patch: Partial<Bar
 export function setBottom(layout: FootingLayout, bottom: BarDir): FootingLayout {
   return { ...layout, bottom };
 }
+
+export function setBasket(layout: FootingLayout, basket: boolean): FootingLayout {
+  return { ...layout, basket };
+}

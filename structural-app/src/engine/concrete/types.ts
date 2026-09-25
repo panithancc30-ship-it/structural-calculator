@@ -7,10 +7,6 @@ export type SupportCondition = 'simple' | 'oneEnd' | 'bothEnds' | 'cantilever';
 
 /** ข้อมูลนำเข้า — หน่วย: ขนาด ซม., L ม., หน่วยแรง ksc, M/T kg·m, V kg */
 export interface BeamInput {
-  projectName: string;
-  beamName: string;
-  designer: string;
-
   b: number;
   h: number;
   L: number;

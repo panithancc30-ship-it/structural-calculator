@@ -79,12 +79,12 @@ export function ConcreteSlabResultView() {
             </div>
           </div>
 
-          {analysis.loads.splitRatio !== null && (
+          {analysis.loads.twoWay && (
             <div className="note info">
               <span>
-                แบ่งน้ำหนักสองทางด้วยวิธี Rankine–Grashof (wx = w·ly⁴/(lx⁴+ly⁴)) — แถบด้านสั้นรับ{' '}
-                {fmt(analysis.loads.share.x, 0)} และด้านยาวรับ {fmt(analysis.loads.share.y, 0)} กก./ตร.ม.
-                วิธีนี้สมมติว่าสองแถบมีสภาพรองรับเหมือนกัน
+                พื้นสองทางใช้ตารางสัมประสิทธิ์โมเมนต์ วิธีที่ 2 (วสท.) — m = S/L ={' '}
+                {fmt(analysis.loads.twoWay.m, 2)} กรณี {analysis.loads.twoWay.caseNo} (ขอบไม่ต่อเนื่อง{' '}
+                {analysis.loads.twoWay.caseNo - 1} ด้าน) M = C·w·S² ทั้งสองทิศ
               </span>
             </div>
           )}

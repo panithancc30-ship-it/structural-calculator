@@ -5,14 +5,12 @@ import { REBARS } from '../rebar';
 import { analyzeSlab, minThickness } from './analyzeSlab';
 import { autoSlabLayout, slabDims } from './designSlab';
 import { supportConditionOf } from './geometry';
-import { rankineGrashof, selfWeight, slabLoads, stripMoments } from './loads';
+import { beamReaction, method2Interp, selfWeight, slabLoads, stripMoments, twoWayCase, twoWayMoments } from './loads';
 import type { SlabInput } from './types';
 import { validateSlabInput } from './validate';
 
 const base: SlabInput = {
-  projectName: 'ทดสอบ',
   slabName: 'S1',
-  designer: '',
   slabType: 'twoWay',
   lx: 400,
   ly: 500,
@@ -49,26 +47,53 @@ describe('น้ำหนักบรรทุก', () => {
   });
 });
 
-describe('การแบ่งน้ำหนักพื้นสองทาง (Rankine–Grashof)', () => {
-  it('wx = w·ly⁴/(lx⁴+ly⁴) และ wx + wy = w (คำนวณมือ)', () => {
-    // lx = 4, ly = 5 → 5⁴/(4⁴+5⁴) = 625/881
-    const ratio = rankineGrashof(400, 500);
-    expect(ratio).toBeCloseTo(625 / 881, 10);
+describe('พื้นสองทาง วิธีที่ 2 (คำนวณมือ)', () => {
+  // lx 4 ม., ly 5 ม. → m = 0.8, ต่อเนื่องสี่ด้าน = กรณี 1, t 12 ซม. → w = 288 + 150 + 300 = 738 กก./ตร.ม.
+  const w = 738;
+
+  it('กรณีตามจำนวนขอบไม่ต่อเนื่อง', () => {
+    expect(twoWayCase(base)).toBe(1);
+    expect(twoWayCase({ ...base, edgeY1: 'simple' })).toBe(2);
+    expect(twoWayCase({ ...base, edgeX1: 'simple', edgeX2: 'simple', edgeY1: 'simple', edgeY2: 'simple' })).toBe(5);
+  });
+
+  it('ช่วงสั้น m = 0.8 กรณี 1: M+ = 0.036·w·S², M− = 0.048·w·S²', () => {
+    const m = twoWayMoments(base, w, 'x');
+    expect(m.pos).toBeCloseTo(0.036 * (w / 100) * 400 * 400, 6);
+    expect(m.negInt).toBeCloseTo(0.048 * (w / 100) * 400 * 400, 6);
+    expect(m.negEnd).toBe(0);
+  });
+
+  it('ช่วงยาวใช้ S² เช่นกัน: M+ = 0.025·w·S², M− = 0.033·w·S²', () => {
+    const m = twoWayMoments(base, w, 'y');
+    expect(m.pos).toBeCloseTo(0.025 * (w / 100) * 400 * 400, 6);
+    expect(m.negInt).toBeCloseTo(0.033 * (w / 100) * 400 * 400, 6);
+  });
+
+  it('ขอบไม่ต่อเนื่องหนึ่งด้าน (กรณี 2): ทิศนั้นมี M− ที่ขอบไม่ต่อเนื่องด้วย', () => {
+    const m = twoWayMoments({ ...base, edgeX1: 'simple' }, w, 'x');
+    expect(m.pos).toBeCloseTo(0.041 * (w / 100) * 400 * 400, 6);
+    expect(m.negEnd).toBeCloseTo(0.027 * (w / 100) * 400 * 400, 6);
+    expect(m.negInt).toBeCloseTo(0.055 * (w / 100) * 400 * 400, 6);
+  });
+
+  it('เทียบค่าระหว่าง m เชิงเส้น และ m < 0.5 ใช้ค่าที่ 0.5', () => {
+    const pos1 = [0.025, 0.030, 0.036, 0.041, 0.047, 0.062];
+    expect(method2Interp(pos1, 0.85)).toBeCloseTo(0.033, 10);
+    expect(method2Interp(pos1, 1)).toBe(0.025);
+    expect(method2Interp(pos1, 0.4)).toBeCloseTo(0.062, 10);
+  });
+
+  it('น้ำหนักลงคาน: คานด้านสั้น w·S/3, คานด้านยาว w·S/3·(3 − m²)/2', () => {
     const loads = slabLoads(base, 12);
-    expect(loads.share.x + loads.share.y).toBeCloseTo(loads.w, 8);
+    const dims = { lx: 400, ly: 500, t: 12 };
+    expect(beamReaction(loads, dims, 'y')).toBeCloseTo((w * 4) / 3, 6);
+    expect(beamReaction(loads, dims, 'x')).toBeCloseTo(((w * 4) / 3) * (3 - 0.64) / 2, 6);
   });
 
-  it('พื้นจัตุรัส → แถบสองทิศรับเท่ากัน', () => {
-    expect(rankineGrashof(400, 400)).toBeCloseTo(0.5, 10);
-  });
-
-  it('แถบด้านสั้นรับน้ำหนักมากกว่าแถบด้านยาว', () => {
-    const loads = slabLoads(base, 12);
-    expect(loads.share.x).toBeGreaterThan(loads.share.y);
-  });
-
-  it('พื้นทางเดียวไม่แบ่งน้ำหนัก — แถบทิศ x รับทั้งหมด', () => {
+  it('พื้นทางเดียวไม่ใช้ตาราง — แถบทิศ x รับทั้งหมด', () => {
     const loads = slabLoads(oneWay, 12);
+    expect(loads.twoWay).toBeNull();
     expect(loads.share.x).toBeCloseTo(loads.w, 10);
     expect(loads.share.y).toBe(0);
   });
@@ -132,7 +157,8 @@ describe('ความหนาขั้นต่ำ', () => {
 });
 
 describe('เหล็กกันร้าว — ใช้ asMinRatio ร่วมกับฐานราก (ACI 7.12)', () => {
-  it('fy = 2,400 → ρ = 0.0020', () => expect(asMinRatio(2400)).toBeCloseTo(0.002, 10));
+  it('เหล็กกลม fy = 2,400 → ρ = 0.0025 (วสท.)', () => expect(asMinRatio(2400)).toBeCloseTo(0.0025, 10));
+  it('เหล็กข้ออ้อย fy = 3,000 → ρ = 0.0020', () => expect(asMinRatio(3000)).toBeCloseTo(0.002, 10));
   it('fy = 4,000 → ρ = 0.0018', () => expect(asMinRatio(4000)).toBeCloseTo(0.0018, 10));
   it('fy = 5,000 → ρ = 0.00144', () => expect(asMinRatio(5000)).toBeCloseTo(0.00144, 10));
 });
@@ -194,7 +220,7 @@ describe('ออกแบบอัตโนมัติ', () => {
 
   it('พื้นสองทางต่อเนื่องสี่ด้าน', () => {
     const { a } = noFail(base);
-    expect(a.loads.splitRatio).not.toBeNull();
+    expect(a.loads.twoWay).toEqual({ m: 0.8, caseNo: 1 });
   });
 
   it('พื้นทางเดียวยึดหมุน', () => noFail(oneWay));
@@ -244,11 +270,17 @@ describe('หน่วยแรงและการตรวจสอบ', () =
     expect(groups).toEqual([...groups].sort((p, q) => firstSeen.indexOf(p) - firstSeen.indexOf(q)));
   });
 
-  it('น้ำหนักจรเกิน 3 เท่าของน้ำหนักคงที่ → เตือนว่าสัมประสิทธิ์ใช้ไม่ได้', () => {
-    const heavy = { ...base, LL: 4000, thicknessMode: 'manual' as const, t: 20 };
+  it('พื้นทางเดียว น้ำหนักจรเกิน 3 เท่าของน้ำหนักคงที่ → เตือนว่าสัมประสิทธิ์ใช้ไม่ได้', () => {
+    const heavy = { ...oneWay, LL: 4000, thicknessMode: 'manual' as const, t: 20 };
     const a = analyzeSlab(heavy, slabDims(heavy), autoSlabLayout(heavy, slabDims(heavy)));
     const check = a.checks.find((c) => c.label.includes('เงื่อนไขใช้สัมประสิทธิ์'));
     expect(check?.status).toBe('warn');
+  });
+
+  it('พื้นสองทางใช้ตารางวิธีที่ 2 — ไม่มีเงื่อนไข LL ≤ 3DL', () => {
+    const heavy = { ...base, LL: 4000, thicknessMode: 'manual' as const, t: 20 };
+    const a = analyzeSlab(heavy, slabDims(heavy), autoSlabLayout(heavy, slabDims(heavy)));
+    expect(a.checks.find((c) => c.label.includes('เงื่อนไขใช้สัมประสิทธิ์'))).toBeUndefined();
   });
 
   it('พื้นวางบนดินเตือนเรื่องน้ำหนักกระทำเป็นจุด', () => {

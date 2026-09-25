@@ -13,9 +13,9 @@ import { parseColumnProject, type ColumnProjectFile } from '@/state/columnStore'
 import { columnTitles } from './concreteColumnDefaults'
 
 const NOTES = [
-  'หน่วย kg, cm, ksc — กำลังยอมให้ = 0.4 × กำลังออกแบบ SDM (φ = 0.70 ปลอกเดี่ยว, 0.75 ปลอกเกลียว)',
-  'ผลความชะลูดใช้วิธีขยายโมเมนต์ โดยแทน Pu ด้วย 2.5P',
-  'แรงดัดสองแกนตรวจด้วยวิธี Bresler / load contour',
+  'หน่วย kg, cm, ksc — มาตรฐาน วสท. วิธีหน่วยแรงใช้งาน: แรงอัดตามแนวแกน 0.85Ag(0.25f′c + fs·ρg), fs = 0.4fy ≤ 2,100 ksc',
+  'แรงอัดร่วมดัด: อัดควบคุม fa/Fa + fb/Fb ≤ 1, ดึงควบคุมเส้นตรงจาก Mo ถึงจุดสมดุล (Nb, Mb)',
+  'เสายาวคูณกำลังยอมให้ด้วย R = 1.32 − 0.006·Lu/r ≤ 1.0 (เสาที่มีคานและพื้นยึดไม่ให้เซ)',
 ]
 
 interface Analyzed {
@@ -65,7 +65,7 @@ export function ConcreteColumnSheet({ project, title, input, remarks, pageNumber
           ? `b × h = ${fmt(col.b, 0)} × ${fmt(col.h, 0)} ซม.`
           : `D = ${fmt(col.D, 0)} ซม.`,
         `covering = ${fmt(col.cover, 1)} ซม.`,
-        `Lu = ${fmt(col.Lu, 2)} ม. (k = ${ACI318_WSD_COLUMN.autoK.toFixed(1)}, M1/M2 = ${ACI318_WSD_COLUMN.autoM1M2.toFixed(1)}, βd = ${ACI318_WSD_COLUMN.autoBetaD})`,
+        `Lu = ${fmt(col.Lu, 2)} ม.`,
       ],
     },
     {
@@ -89,7 +89,7 @@ export function ConcreteColumnSheet({ project, title, input, remarks, pageNumber
       cells: [
         `อัตราส่วนใช้งาน = ${util} (${METHOD_TH[analysis.method]})`,
         `P ยอมให้ = ${fmt(analysis.curveX.Pmax / 1000, 2)} ตัน`,
-        `ρg = ${fmt(analysis.rho * 100)} %, φ = ${analysis.phi}`,
+        `ρg = ${fmt(analysis.rho * 100)} %`,
       ],
     },
   ]
@@ -108,7 +108,7 @@ export function ConcreteColumnSheet({ project, title, input, remarks, pageNumber
       </figure>
       <figure>
         <InteractionChart analysis={analysis} P={col.P} />
-        <figcaption>แผนภาพ P–M กำลังยอมให้ (0.4φ) และจุดแรงใช้งาน</figcaption>
+        <figcaption>แผนภาพ P–M กำลังยอมให้ (วสท.) และจุดแรงใช้งาน</figcaption>
       </figure>
     </>
   )

@@ -5,9 +5,7 @@ import { validateColumnInput } from '@/engine/concrete/column/validate';
 import { isBarName } from '@/engine/concrete/rebar';
 
 export const DEFAULT_COLUMN: ColumnInput = {
-  projectName: 'โครงการทดสอบ',
   columnName: 'C1',
-  designer: '',
   shape: 'rect',
   b: 30,
   h: 30,
@@ -21,7 +19,7 @@ export const DEFAULT_COLUMN: ColumnInput = {
   Mx: 2000,
   My: 1000,
   mainBar: 'DB16',
-  tieBar: 'RB9',
+  tieBar: 'RB6',
 };
 
 function design(input: ColumnInput, prev: ColumnLayout | null, edited: boolean): ColumnLayout {

@@ -1,4 +1,11 @@
-/** Interaction diagram P–M ของหน้าตัดเสา (strain compatibility, Whitney stress block) */
+/**
+ * เส้นกำลังยอมให้ P–M ของเสา ตามมาตรฐาน วสท. วิธีหน่วยแรงใช้งาน (มาจาก ACI 318-63 บทที่ 14)
+ *
+ * เส้นเป็นเส้นตรงสามช่วง:
+ *  - ดึงควบคุม (P < Nb): M = Mo + (Mb − Mo)·P/Nb
+ *  - อัดควบคุม (P ≥ Nb): fa/Fa + fb/Fb = 1 → M = S·Fb·(1 − P/(Ag·Fa))
+ *  - ตัดที่แรงอัดตามแนวแกน Pa (สูตรเสารับแรงตามแนวแกน ซึ่งรวมการเยื้องศูนย์ขั้นต่ำไว้แล้ว)
+ */
 import { ACI318_WSD as C, ACI318_WSD_COLUMN as K } from '../codes/aci318Wsd';
 
 /** y วัดจากจุดศูนย์ถ่วง เป็นบวกไปทางผิวรับอัด */
@@ -7,7 +14,8 @@ export interface FiberBar {
   area: number;
 }
 
-export type InteractionShape = { kind: 'rect'; width: number; depth: number } | { kind: 'circle'; D: number };
+/** Ds = เส้นผ่านศูนย์กลางวงเหล็กยืนของเสากลม */
+export type InteractionShape = { kind: 'rect'; width: number; depth: number } | { kind: 'circle'; D: number; Ds: number };
 
 /** จุดบนเส้นกำลังที่ยอมให้ — M (kg·cm), P (kg) */
 export interface PMPoint {
@@ -16,48 +24,31 @@ export interface PMPoint {
 }
 
 export interface InteractionCurve {
+  /** เส้นกำลังยอมให้หลังคูณ R แล้ว เรียงจาก (0, Mo) ถึง (Pmax, 0) */
   points: PMPoint[];
-  /** 0.4·φ·Po */
-  P0: number;
-  /** 0.4·φ·Pn,max */
+  /** R·Pa */
   Pmax: number;
-  /** 0.4·φ — ตัวคูณจากกำลังระบุ → กำลังยอมให้ */
-  factor: number;
+  /** ตัวคูณลดกำลังเสายาว */
+  R: number;
+  /** ค่าต่อไปนี้ยังไม่คูณ R — ใช้แสดงขั้นตอนคำนวณ */
+  Pa: number;
+  /** หน่วยแรงยอมให้ของเหล็กยืนในสูตรแรงอัดตามแนวแกน (ksc) */
+  fsa: number;
+  Fa: number;
+  Fb: number;
+  /** โมดูลัสหน้าตัดแปลงไม่แตกร้าว (ซม.³) */
+  S: number;
+  eb: number;
+  Nb: number;
+  Mb: number;
+  Mo: number;
 }
 
-export function beta1(fc: number): number {
-  return Math.min(0.85, Math.max(0.65, 0.85 - (0.05 * (fc - 280)) / 70));
-}
-
-function compressionBlock(shape: InteractionShape, a: number): { area: number; yc: number } {
-  if (shape.kind === 'rect') {
-    const aa = Math.min(Math.max(a, 0), shape.depth);
-    return { area: shape.width * aa, yc: shape.depth / 2 - aa / 2 };
-  }
-  const R = shape.D / 2;
-  const aa = Math.min(Math.max(a, 0), shape.D);
-  if (aa <= 0) return { area: 0, yc: 0 };
-  if (aa >= shape.D) return { area: Math.PI * R * R, yc: 0 };
-  const theta = 2 * Math.acos((R - aa) / R);
-  const seg = theta - Math.sin(theta);
-  return { area: (R * R * seg) / 2, yc: (4 * R * Math.sin(theta / 2) ** 3) / (3 * seg) };
-}
-
-/** กำลังระบุ (Pn, Mn) ที่ความลึกแกนสะเทิน c */
-export function nominalPoint(shape: InteractionShape, bars: FiberBar[], fc: number, fy: number, c: number) {
-  const H = shape.kind === 'rect' ? shape.depth / 2 : shape.D / 2;
-  const a = Math.min(beta1(fc) * c, 2 * H);
-  const block = compressionBlock(shape, a);
-  let Pn = 0.85 * fc * block.area;
-  let Mn = Pn * block.yc;
-  for (const bar of bars) {
-    const dy = H - bar.y;
-    const fs = Math.max(-fy, Math.min(fy, (C.Es * K.epsCu * (c - dy)) / c));
-    const F = bar.area * (fs - (dy < a ? 0.85 * fc : 0));
-    Pn += F;
-    Mn += F * bar.y;
-  }
-  return { Pn, Mn };
+/** สูตรเสารับแรงตามแนวแกน: ปลอกเดี่ยว 0.85Ag(0.25f′c + fs·ρg), ปลอกเกลียว Ag(0.25f′c + fs·ρg) */
+export function axialCapacity(Ag: number, Ast: number, fc: number, fy: number, spiral: boolean) {
+  const fsa = Math.min(K.axialSteelRatio * fy, K.axialSteelMax);
+  const Pa = (spiral ? 1 : K.tiedFactor) * (K.axialConcreteRatio * fc * Ag + fsa * Ast);
+  return { fsa, Pa };
 }
 
 export function interactionCurve(
@@ -66,45 +57,49 @@ export function interactionCurve(
   fc: number,
   fy: number,
   spiral: boolean,
+  R = 1,
 ): InteractionCurve {
-  const depth = shape.kind === 'rect' ? shape.depth : shape.D;
+  const t = shape.kind === 'rect' ? shape.depth : shape.D;
   const Ag = shape.kind === 'rect' ? shape.width * shape.depth : (Math.PI * shape.D ** 2) / 4;
   const Ast = bars.reduce((s, b) => s + b.area, 0);
-  const Po = 0.85 * fc * (Ag - Ast) + fy * Ast;
-  const PnMax = (spiral ? K.pmaxSpiral : K.pmaxTied) * Po;
-  const factor = K.capacityFactor * (spiral ? K.phiSpiral : K.phiTied);
+  const rho = Ast / Ag;
+  const m = fy / (0.85 * fc);
+  const Fa = K.FaCoef * (1 + rho * m) * fc;
+  const Fb = C.fcRatio * fc;
 
-  const N = 180;
-  const raw = Array.from({ length: N + 1 }, (_, i) => nominalPoint(shape, bars, fc, fy, depth * 0.01 * Math.pow(2000, i / N)));
+  const n = C.Es / (C.EcCoef * Math.sqrt(fc));
+  const Ic = shape.kind === 'rect' ? (shape.width * shape.depth ** 3) / 12 : (Math.PI * shape.D ** 4) / 64;
+  const I = Ic + (K.creepModularFactor * n - 1) * bars.reduce((s, b) => s + b.area * b.y * b.y, 0);
+  const S = I / (t / 2);
 
-  const nominal: PMPoint[] = [];
-  for (let i = 0; i < raw.length; i++) {
-    const p = raw[i];
-    const prev = raw[i - 1];
-    if (p.Pn < 0) continue;
-    if (nominal.length === 0) {
-      if (prev) {
-        const t = -prev.Pn / (p.Pn - prev.Pn);
-        nominal.push({ P: 0, M: prev.Mn + t * (p.Mn - prev.Mn) });
-      } else {
-        nominal.push({ P: 0, M: p.Mn });
-      }
-    }
-    if (p.Pn >= PnMax) {
-      const q = prev && prev.Pn < PnMax ? prev : p;
-      const t = q === p ? 0 : (PnMax - q.Pn) / (p.Pn - q.Pn);
-      nominal.push({ P: PnMax, M: q.Mn + t * (p.Mn - q.Mn) });
-      break;
-    }
-    nominal.push({ P: p.Pn, M: p.Mn });
+  let eb: number;
+  let Mo: number;
+  if (shape.kind === 'circle') {
+    eb = K.ebSpiralA * rho * m * shape.Ds + K.ebSpiralB * t;
+    Mo = K.MoSpiral * Ast * fy * shape.Ds;
+  } else {
+    // เหล็กแถวนอกสุดด้านรับแรงดึง (ฝั่ง y ลบ) และด้านรับแรงอัด
+    const yt = Math.max(0, ...bars.map((b) => -b.y));
+    const yc = Math.max(0, ...bars.map((b) => b.y));
+    const As = bars.filter((b) => -b.y >= yt - 0.5).reduce((s, b) => s + b.area, 0);
+    eb = (K.ebTiedA * rho * m + K.ebTiedB) * (t / 2 + yt);
+    Mo = K.MoTied * As * fy * (yt + yc);
   }
-  nominal.push({ P: PnMax, M: 0 });
+
+  const Nb = 1 / (1 / (Ag * Fa) + eb / (S * Fb));
+  const Mb = Nb * eb;
+  const { fsa, Pa } = axialCapacity(Ag, Ast, fc, fy, spiral);
+  const Mcomp = (P: number) => Math.max(0, S * Fb * (1 - P / (Ag * Fa)));
+
+  const raw: PMPoint[] = [{ P: 0, M: Mo }];
+  if (Nb < Pa) raw.push({ P: Nb, M: Mb }, { P: Pa, M: Mcomp(Pa) });
+  else raw.push({ P: Pa, M: Mo + ((Mb - Mo) * Pa) / Nb });
+  raw.push({ P: Pa, M: 0 });
 
   return {
-    points: nominal.map((pt) => ({ P: pt.P * factor, M: Math.max(0, pt.M) * factor })),
-    P0: Po * factor,
-    Pmax: PnMax * factor,
-    factor,
+    points: raw.map((p) => ({ P: p.P * R, M: p.M * R })),
+    Pmax: Pa * R,
+    R, Pa, fsa, Fa, Fb, S, eb, Nb, Mb, Mo,
   };
 }
 

@@ -5,8 +5,8 @@ import type { BarDir } from '../footing/types';
 import { ALL_BAR_SIZES, REBARS, type BarName } from '../rebar';
 import type { Face } from '../types';
 import { minThickness } from './analyzeSlab';
-import { DIRS, FACES, slabGeometry, spanOf, supportConditionOf } from './geometry';
-import { slabLoads, stripMoments, stripShear } from './loads';
+import { DIRS, FACES, slabGeometry } from './geometry';
+import { slabLoads, stripDemand } from './loads';
 import type { BarRun, SlabDims, SlabInput, SlabLayout } from './types';
 
 const STRIP = 100;
@@ -19,20 +19,9 @@ const ceilStep = (v: number) => Math.ceil(v / K.sizeStep - 1e-9) * K.sizeStep;
  */
 function demandAt(input: SlabInput, t: number) {
   const loads = slabLoads(input, t);
-  const flexural = input.slabType !== 'onGround';
   return DIRS.map((dir) => {
-    const span = spanOf({ lx: input.lx, ly: input.ly }, dir);
-    const support = supportConditionOf(input, dir);
-    const w = loads.share[dir];
-    const active = flexural && w > 0;
-    const m = active
-      ? stripMoments(w, span, support)
-      : { pos: 0, negEnd: 0, negInt: 0, divisors: { pos: null, negEnd: null, negInt: null } };
-    return {
-      dir,
-      M: { bottom: m.pos, top: Math.max(m.negEnd, m.negInt) } as Record<Face, number>,
-      V: active ? stripShear(w, span, support) : 0,
-    };
+    const { moments: m, V } = stripDemand(input, loads, dir);
+    return { dir, M: { bottom: m.pos, top: Math.max(m.negEnd, m.negInt) } as Record<Face, number>, V };
   });
 }
 
