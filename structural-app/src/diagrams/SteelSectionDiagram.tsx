@@ -149,6 +149,31 @@ function piecePlacement(d: SteelDetailing): Array<{ dx: number; flip: boolean }>
   }
 }
 
+/** เหล็กทุกท่อนของหน้าตัด วาดรอบจุด (0,0) — ใช้ร่วมกับรูปตัดเสาเหล็กหุ้มคอนกรีต */
+export function SteelShape({ detailing, u }: { detailing: SteelDetailing; u: (v: number) => number }) {
+  const { path, evenOdd, strokeOnly } = outlinePath(detailing, u)
+  return (
+    <>
+      {piecePlacement(detailing).map((piece, i) => (
+        <g
+          key={i}
+          transform={`translate(${u(piece.dx)} 0)${piece.flip ? ' scale(-1 1)' : ''}`}
+        >
+          <path
+            d={path}
+            fill={strokeOnly ? 'none' : DIAGRAM_STYLE.steelFill}
+            fillRule={evenOdd ? 'evenodd' : 'nonzero'}
+            stroke={DIAGRAM_STYLE.steelStroke}
+            strokeWidth={strokeOnly ?? DIAGRAM_STYLE.strokeWidth}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </g>
+      ))}
+    </>
+  )
+}
+
 interface Props {
   detailing: SteelDetailing
   /** แสดงชื่อหน้าตัดและมุมใต้รูป — รายงานพิมพ์ปิดไว้แล้วเขียนเป็นข้อความ HTML แทน เพราะรูปถูกย่อจนอ่านไม่ออก */
@@ -156,8 +181,6 @@ interface Props {
 }
 
 export function SteelSectionDiagram({ detailing, caption = true }: Props) {
-  const pieces = piecePlacement(detailing)
-
   const totalW =
     detailing.arrangement === 'single' ? detailing.bf : 2 * detailing.bf + detailing.gap
   const totalH = detailing.d
@@ -172,7 +195,6 @@ export function SteelSectionDiagram({ detailing, caption = true }: Props) {
   /** มาตราส่วนขยาย — ขยายเฉพาะหน้าตัดที่เล็กมาก ไม่ย่อหน้าตัดใหญ่ */
   const scale = Math.max(1, MIN_DRAWING / Math.max(naturalW, naturalH, 1e-6))
   const u = (v: number) => cm(v) * scale
-  const { path, evenOdd, strokeOnly } = outlinePath(detailing, u)
 
   const boxW = naturalW * scale
   const boxH = naturalH * scale
@@ -250,22 +272,7 @@ export function SteelSectionDiagram({ detailing, caption = true }: Props) {
       )}
 
       <g transform={`translate(${originX} ${originY}) rotate(${detailing.sectionAngle})`}>
-        {pieces.map((piece, i) => (
-          <g
-            key={i}
-            transform={`translate(${u(piece.dx)} 0)${piece.flip ? ' scale(-1 1)' : ''}`}
-          >
-            <path
-              d={path}
-              fill={strokeOnly ? 'none' : DIAGRAM_STYLE.steelFill}
-              fillRule={evenOdd ? 'evenodd' : 'nonzero'}
-              stroke={DIAGRAM_STYLE.steelStroke}
-              strokeWidth={strokeOnly ?? DIAGRAM_STYLE.strokeWidth}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          </g>
-        ))}
+        <SteelShape detailing={detailing} u={u} />
       </g>
 
       {/* ลูกศรแรงในแนวดิ่ง — แสดงว่าแรงไม่ได้ตั้งฉากกับหน้าตัดเมื่อหน้าตัดเอียง */}

@@ -22,6 +22,15 @@ interface Props {
   suggestCategories: SectionCategory[]
   onSuggestCategoriesChange: (categories: SectionCategory[]) => void
   suggestions: Suggestion[]
+  /** จำกัดหมวดหน้าตัดที่เลือกได้ — ไม่ระบุคือทุกหมวด */
+  categories?: SectionCategory[]
+  /** ชุดหมวดของตัวช่วยแนะนำหน้าตัด — ไม่ระบุคือชุดมาตรฐานของงานคานและเสา */
+  suggestGroups?: SuggestGroup[]
+}
+
+export interface SuggestGroup {
+  label: string
+  categories: SectionCategory[]
 }
 
 const gradeOptions = [
@@ -30,7 +39,7 @@ const gradeOptions = [
 ]
 
 /** หมวดที่เลือกได้ในตัวช่วยแนะนำหน้าตัด */
-const SUGGEST_GROUPS: Array<{ label: string; categories: SectionCategory[] }> = [
+const SUGGEST_GROUPS: SuggestGroup[] = [
   { label: 'เหล็ก H ทุกแบบ', categories: ['h-narrow', 'h-wide'] },
   { label: 'เหล็ก H + รางน้ำ + ตัวซี', categories: ['h-narrow', 'h-wide', 'channel', 'lipped-channel'] },
   { label: 'เหล็กกล่อง + ท่อ', categories: ['square-tube', 'rect-tube', 'pipe'] },
@@ -79,6 +88,8 @@ export function SectionPicker({
   suggestCategories,
   onSuggestCategoriesChange,
   suggestions,
+  categories,
+  suggestGroups = SUGGEST_GROUPS,
 }: Props) {
   const set = <K extends keyof SectionSelection>(key: K, v: SectionSelection[K]) =>
     onChange({ ...value, [key]: v })
@@ -87,7 +98,9 @@ export function SectionPicker({
   const sections = useMemo(() => sectionsInCategory(currentCategory), [currentCategory])
   const arrangements = arrangementsFor(currentCategory)
 
-  const groupIndex = SUGGEST_GROUPS.findIndex(
+  const categoryOptions = SECTION_CATEGORIES.filter((c) => !categories || categories.includes(c.id))
+
+  const groupIndex = suggestGroups.findIndex(
     (g) => g.categories.join(',') === suggestCategories.join(','),
   )
 
@@ -138,7 +151,7 @@ export function SectionPicker({
             <SelectField
               label="หมวดหน้าตัด"
               value={currentCategory}
-              options={SECTION_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
+              options={categoryOptions.map((c) => ({ value: c.id, label: c.label }))}
               onChange={(v) => changeCategory(v as SectionCategory)}
             />
             <SelectField
@@ -287,8 +300,8 @@ export function SectionPicker({
           <SelectField
             label="ค้นหาจากหมวด"
             value={String(groupIndex >= 0 ? groupIndex : 0)}
-            options={SUGGEST_GROUPS.map((g, i) => ({ value: String(i), label: g.label }))}
-            onChange={(v) => onSuggestCategoriesChange(SUGGEST_GROUPS[Number(v)].categories)}
+            options={suggestGroups.map((g, i) => ({ value: String(i), label: g.label }))}
+            onChange={(v) => onSuggestCategoriesChange(suggestGroups[Number(v)].categories)}
           />
           <div className="sm:col-span-2">
             {suggestions.length === 0 ? (
