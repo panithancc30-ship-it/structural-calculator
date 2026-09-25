@@ -4,6 +4,12 @@ export type SectionKey = 'A' | 'B';
 export type Face = 'top' | 'bottom';
 export type StirrupMode = 'auto' | 'single' | 'double';
 export type SupportCondition = 'simple' | 'oneEnd' | 'bothEnds' | 'cantilever';
+/**
+ * วิธีคำนวณแรงเฉือนร่วมแรงบิด
+ * - aci  ACI 318-83 (vt = 3T/Σx²y, คอนกรีตรับแรงบิดร่วมกับแรงเฉือน) — คาน คสล. ทั่วไป
+ * - eit  เอกสาร ว.ส.ท. (vt = 3.5T/Σx²y, เหล็กปลอกปิดรับแรงบิดทั้งหมด) — คานรับพื้นยื่น
+ */
+export type TorsionMethod = 'aci' | 'eit';
 
 /** ข้อมูลนำเข้า — หน่วย: ขนาด ซม., L ม., หน่วยแรง ksc, M/T kg·m, V kg */
 export interface BeamInput {
@@ -26,6 +32,8 @@ export interface BeamInput {
   /** ระยะเหล็กปลอกต่ำสุดที่ยังก่อสร้างสะดวก (ซม.) */
   sMin: number;
   support: SupportCondition;
+  /** ไม่ระบุ = 'aci' — ไม่อยู่ในไฟล์ของคาน คสล. ทั่วไป คานรับพื้นยื่นตั้งเป็น 'eit' ตอนคำนวณ */
+  torsionMethod?: TorsionMethod;
 }
 
 export interface Bar {

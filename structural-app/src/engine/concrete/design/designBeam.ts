@@ -91,10 +91,18 @@ export function minDepth(input: BeamInput): number {
   return ((input.L * 100) / C.minDepthDivisor[input.support]) * factor;
 }
 
-export function analyzeBeam(input: BeamInput, layouts: Record<SectionKey, SectionLayout>): BeamAnalysis {
+/**
+ * ตรวจสอบคานทั้งสองหน้าตัด
+ * @param sections ข้อมูลนำเข้าแยกตามหน้าตัด เมื่อ M, V, T ต่างกัน (คานรับพื้นยื่น) — ปกติใช้ input เดียวกัน
+ */
+export function analyzeBeam(
+  input: BeamInput,
+  layouts: Record<SectionKey, SectionLayout>,
+  sections: Record<SectionKey, BeamInput> = { A: input, B: input },
+): BeamAnalysis {
   const params = wsdParams(input.fc, input.fy, input.fyv);
-  const A = analyzeSection(input, 'A', layouts.A);
-  const B = analyzeSection(input, 'B', layouts.B, { bottomAsAtA: faceArea(layouts.A, 'bottom') });
+  const A = analyzeSection(sections.A, 'A', layouts.A);
+  const B = analyzeSection(sections.B, 'B', layouts.B, { bottomAsAtA: faceArea(layouts.A, 'bottom') });
 
   const hMin = minDepth(input);
   const beamChecks: CheckItem[] = [
@@ -120,7 +128,8 @@ export function analyzeBeam(input: BeamInput, layouts: Record<SectionKey, Sectio
   ];
 
   const noteFor = (a: SectionAnalysis) => {
-    const choice = chooseStirrup(input, (size) => shearTorsionDemand(input, a.params, a.dT, REBARS[size].dia));
+    const sec = sections[a.key];
+    const choice = chooseStirrup(sec, (size) => shearTorsionDemand(sec, a.params, a.dT, REBARS[size].dia));
     return choice.constructible ? null : choice.suggestion;
   };
 

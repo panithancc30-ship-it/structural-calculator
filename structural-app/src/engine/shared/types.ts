@@ -81,6 +81,7 @@ export const CALC_SHEET_KINDS = [
   'steel-beam',
   'steel-column',
   'concrete-beam',
+  'concrete-ledge-beam',
   'concrete-column',
   'concrete-footing',
   'concrete-pilecap',

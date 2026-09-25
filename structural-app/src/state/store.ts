@@ -47,7 +47,7 @@ export interface ProjectFile {
 type Obj = Record<string, unknown>;
 const asObj = (v: unknown): Obj | null => (typeof v === 'object' && v !== null ? (v as Obj) : null);
 
-function isLayout(value: unknown): value is SectionLayout {
+export function isLayout(value: unknown): value is SectionLayout {
   const v = asObj(value);
   if (!v) return false;
   const layers = (x: unknown) =>

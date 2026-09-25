@@ -10,7 +10,7 @@ const STIRRUP_MODES: { value: StirrupMode; label: string }[] = [
   { value: 'double', label: '2 ปลอก' },
 ];
 
-type NumericKey = { [K in keyof BeamInput]: BeamInput[K] extends number ? K : never }[keyof BeamInput];
+type NumericKey = { [K in keyof BeamInput]-?: BeamInput[K] extends number ? K : never }[keyof BeamInput];
 
 export function InputPanel() {
   const input = useStore((s) => s.input);
