@@ -176,8 +176,8 @@ export function SlabSection(props: CommonProps & { dir: BarDir }) {
         strokeWidth={0.3 * u}
       />
 
-      {/* เหล็กที่ขนานกับระนาบตัด */}
-      {m.runs.map((r) => {
+      {/* เหล็กที่ขนานกับระนาบตัด — ขอบต่อเนื่องทั้งสองด้าน ทำให้เหล็กบนตัดเป็น 2 เส้นที่ใช้ key ฐานเดียวกัน ต่อลำดับ i กันชนกัน */}
+      {m.runs.map((r, i) => {
         const selected = selectedKey === r.key;
         const { className, ...rest } = pick({
           kind: 'bars',
@@ -185,7 +185,7 @@ export function SlabSection(props: CommonProps & { dir: BarDir }) {
           dir,
         }) as { className?: string };
         return (
-          <g key={r.key}>
+          <g key={`${r.key}-${i}`}>
             <path d={r.path} fill="none" stroke={selected ? '#e8590c' : '#1d5fbf'} strokeWidth={Math.max(r.width, 0.35 * u)} strokeLinecap="round" />
             {interactive && (
               <path className={className} {...rest} d={r.path} fill="none" stroke="transparent" strokeWidth={1.6 * u} />
