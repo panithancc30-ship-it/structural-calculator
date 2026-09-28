@@ -86,9 +86,9 @@ describe('ตัวอย่าง 6.4 — เสาเหล็กหุ้ม�
     expect(check(EXAMPLE_6_4, 'cover').status).toBe('pass')
   })
 
-  it('f′c = 180 ต่ำกว่าเกณฑ์ขั้นต่ำ 200 ksc', () => {
-    expect(check(EXAMPLE_6_4, 'fc-min').status).toBe('fail')
-    expect(calcEncasedColumn({ ...EXAMPLE_6_4, fc: 240 }).overall).toBe('pass')
+  it('f′c = 180 ผ่านเกณฑ์ขั้นต่ำ 175 ksc — ผ่านทุกรายการ', () => {
+    expect(check(EXAMPLE_6_4, 'fc-min').status).toBe('pass')
+    expect(calcEncasedColumn(EXAMPLE_6_4).overall).toBe('pass')
   })
 
   it('หน้าตัด H125×125 จากตาราง มอก. ให้ผลใกล้เคียงตำราภายใน 0.5%', () => {
@@ -98,7 +98,7 @@ describe('ตัวอย่าง 6.4 — เสาเหล็กหุ้ม�
   })
 
   it('ตัวช่วยแนะนำเลือก H125×125 เป็นหน้าตัดที่เบาที่สุด แม้ f′c ยังไม่ผ่าน', () => {
-    const list = suggestEncasedColumnSections({ ...DEFAULT_ENCASED_COLUMN_INPUT, fc: 180 }, [
+    const list = suggestEncasedColumnSections({ ...DEFAULT_ENCASED_COLUMN_INPUT, fc: 150 }, [
       'h-wide',
       'h-narrow',
     ])
@@ -123,6 +123,11 @@ describe('เงื่อนไขที่ไม่ผ่าน', () => {
     expect(c.actual).toBeCloseTo(3.75, 2)
     expect(c.status).toBe('fail')
     expect(c.note).toContain('25 × 25')
+  })
+
+  it('f′c ต่ำกว่า 175 ksc', () => {
+    expect(check({ ...base, fc: 175 }, 'fc-min').status).toBe('pass')
+    expect(check({ ...base, fc: 170 }, 'fc-min').status).toBe('fail')
   })
 
   it('เสาแคบกว่า 20 ซม.', () => {
