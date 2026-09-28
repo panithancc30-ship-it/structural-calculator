@@ -7,6 +7,7 @@
 
 import { calcSteelBeamASD, type SteelBeamInput } from './beamASD'
 import { calcSteelColumnASD, type SteelColumnInput } from './columnASD'
+import { calcEncasedColumn, SECTION_DEPENDENT_CHECKS, type EncasedColumnInput } from './encasedColumn'
 import { SECTION_TABLE, type SectionCategory } from './sectionTable'
 
 export interface Suggestion {
@@ -85,6 +86,29 @@ export function suggestColumnSections(
       maxRatio: result.summary.maxRatio,
       pass: result.overall !== 'fail',
       warn: result.overall === 'warn',
+    }
+  })
+}
+
+/**
+ * เสาเหล็กหุ้มคอนกรีต — คัดเฉพาะรายการที่ขึ้นกับหน้าตัดเหล็ก (ความชะลูด กำลัง ระยะหุ้ม)
+ * เพื่อให้ยังแนะนำหน้าตัดได้แม้ f′c หรือระยะลวดตาข่ายยังไม่ผ่าน
+ */
+export function suggestEncasedColumnSections(
+  input: EncasedColumnInput,
+  categories: SectionCategory[],
+): Suggestion[] {
+  return collect(categories, (sectionId) => {
+    const result = calcEncasedColumn({
+      ...input,
+      section: { ...input.section, source: 'table', sectionId, arrangement: 'single', hat: undefined },
+    })
+    const sectionChecks = result.checks.filter((c) => SECTION_DEPENDENT_CHECKS.has(c.id))
+    return {
+      weight: result.summary.weight,
+      maxRatio: result.summary.maxRatio,
+      pass: sectionChecks.every((c) => c.status !== 'fail'),
+      warn: sectionChecks.some((c) => c.status === 'warn'),
     }
   })
 }

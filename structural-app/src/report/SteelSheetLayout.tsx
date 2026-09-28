@@ -34,6 +34,8 @@ interface Props {
   pageNumber: number
   totalPages: number
   conclusion?: ReactNode
+  /** รูปและคำบรรยายแทนรูปตัดเหล็ก เช่น เสาเหล็กหุ้มคอนกรีต */
+  figure?: ReactNode
 }
 
 /** จัดแถวให้เป็นคู่ ๆ เพื่อใส่ 2 คู่ต่อหนึ่งแถวของตาราง */
@@ -71,6 +73,7 @@ export function SteelSheetLayout({
   pageNumber,
   totalPages,
   conclusion,
+  figure,
 }: Props) {
   return (
     <section className="report-page fit-one-page" data-title={title}>
@@ -191,12 +194,16 @@ export function SteelSheetLayout({
 
       <div className="sheet-bottom avoid-break">
         <div className="sheet-figure">
-          <SteelSectionDiagram detailing={detailing} caption={false} />
-          <div className="sheet-figure-caption">
-            {detailing.sectionName} · {detailing.gradeLabel.split(' ')[0]}
-            <br />
-            θs = {detailing.sectionAngle}° · θm = {detailing.memberAngle}°
-          </div>
+          {figure ?? (
+            <>
+              <SteelSectionDiagram detailing={detailing} caption={false} />
+              <div className="sheet-figure-caption">
+                {detailing.sectionName} · {detailing.gradeLabel.split(' ')[0]}
+                <br />
+                θs = {detailing.sectionAngle}° · θm = {detailing.memberAngle}°
+              </div>
+            </>
+          )}
         </div>
         <div className="sheet-notes">
           {warnings.length > 0 && (

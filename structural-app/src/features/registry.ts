@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import { createElement } from 'react'
-import { AlignStartVertical, Box, Columns3, DoorStairwell, Grid2x2, Layers, Slash, Square } from 'lucide-react'
+import { AlignStartVertical, Box, Columns3, DoorStairwell, Grid2x2, Layers, Slash, Square, SquareSquare } from 'lucide-react'
 import { calcSteelBeamASD, type SteelBeamInput } from '@/engine/steel/beamASD'
 import { calcSteelColumnASD, type SteelColumnInput } from '@/engine/steel/columnASD'
+import { calcEncasedColumn, type EncasedColumnInput } from '@/engine/steel/encasedColumn'
 import type { CalcSheetKind, CheckStatus, Project } from '@/engine/shared/types'
 import { toReportStatus } from '@/features/concrete/concreteDraft'
 import { ConcreteBeamForm } from '@/features/concrete-beam/ConcreteBeamForm'
@@ -41,6 +42,10 @@ import { SteelColumnForm } from '@/features/steel-column/SteelColumnForm'
 import { SteelColumnResultView } from '@/features/steel-column/SteelColumnResultView'
 import { SteelColumnSheet } from '@/features/steel-column/SteelColumnSheet'
 import { DEFAULT_STEEL_COLUMN_INPUT } from '@/features/steel-column/steelColumnDefaults'
+import { EncasedColumnForm } from '@/features/steel-encased-column/EncasedColumnForm'
+import { EncasedColumnResultView } from '@/features/steel-encased-column/EncasedColumnResultView'
+import { EncasedColumnSheet } from '@/features/steel-encased-column/EncasedColumnSheet'
+import { DEFAULT_ENCASED_COLUMN_INPUT } from '@/features/steel-encased-column/encasedColumnDefaults'
 
 export interface SheetRenderProps {
   project: Project
@@ -128,6 +133,28 @@ export const SHEET_TYPES: SheetTypeDef[] = [
       }),
     renderSheet: (props) =>
       createElement(SteelColumnSheet, { ...props, input: props.input as SteelColumnInput }),
+  },
+  {
+    kind: 'steel-encased-column',
+    group: 'steel',
+    label: 'เสาเหล็กหุ้มคอนกรีต',
+    titlePrefix: 'เสาเหล็กหุ้มคอนกรีต EC',
+    icon: SquareSquare,
+    defaultInput: DEFAULT_ENCASED_COLUMN_INPUT,
+    description:
+      'เสาเหล็กรูปพรรณหุ้มคอนกรีตเสริมลวดตาข่าย รับแรงอัดตามแนวแกน ตามมาตรฐาน วสท. — แนะนำหน้าตัดที่เบาที่สุดให้',
+    overallOf: (input) => calcEncasedColumn(input as EncasedColumnInput).overall,
+    renderForm: (input, onChange) =>
+      createElement(EncasedColumnForm, {
+        value: input as EncasedColumnInput,
+        onChange: onChange as (v: EncasedColumnInput) => void,
+      }),
+    renderResult: (input) =>
+      createElement(EncasedColumnResultView, {
+        result: calcEncasedColumn(input as EncasedColumnInput),
+      }),
+    renderSheet: (props) =>
+      createElement(EncasedColumnSheet, { ...props, input: props.input as EncasedColumnInput }),
   },
   {
     kind: 'concrete-beam',

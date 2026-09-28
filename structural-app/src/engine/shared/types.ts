@@ -80,6 +80,7 @@ export interface CalcResult<TInput, TDetailing extends MemberDetailing> {
 export const CALC_SHEET_KINDS = [
   'steel-beam',
   'steel-column',
+  'steel-encased-column',
   'concrete-beam',
   'concrete-ledge-beam',
   'concrete-column',
