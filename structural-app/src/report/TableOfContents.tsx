@@ -1,4 +1,5 @@
 import { KIND_LABEL } from '../features/registry'
+import type { StandardDrawing } from '../features/standard-drawings/standardDrawings'
 import type { CalcSheet, Project } from '../engine/shared/types'
 
 interface Props {
@@ -8,9 +9,13 @@ interface Props {
   criteriaPage: number
   /** เลขหน้าเริ่มต้นของรายการคำนวณแผ่นแรก */
   firstSheetPage: number
+  /** แบบมาตรฐานที่เลือกแนบ ต่อท้ายรายการคำนวณ */
+  drawings: StandardDrawing[]
+  /** เลขหน้าของแบบมาตรฐานแผ่นแรก */
+  firstDrawingPage: number
 }
 
-export function TableOfContents({ project, sheets, criteriaPage, firstSheetPage }: Props) {
+export function TableOfContents({ project, sheets, criteriaPage, firstSheetPage, drawings, firstDrawingPage }: Props) {
   return (
     <section className="report-page">
       <div className="sheet-header">
@@ -41,6 +46,14 @@ export function TableOfContents({ project, sheets, criteriaPage, firstSheetPage 
           </span>
           <span className="toc-dots" />
           <span>{firstSheetPage + index}</span>
+        </div>
+      ))}
+
+      {drawings.map((drawing, index) => (
+        <div className="toc-row" key={drawing.id}>
+          <span>{drawing.title}</span>
+          <span className="toc-dots" />
+          <span>{firstDrawingPage + index}</span>
         </div>
       ))}
 

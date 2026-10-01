@@ -34,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { CalcSheet, CalcSheetKind } from '@/engine/shared/types'
 import { DesignCriteriaPage } from '@/features/design-criteria/DesignCriteriaPage'
 import { GROUP_LABEL, KIND_LABEL, SHEET_TYPES, SHEET_TYPES_BY_GROUP, inputWithTitle, sheetType } from '@/features/registry'
+import { StandardDrawingPicker } from '@/features/standard-drawings/StandardDrawingPicker'
 import { useProjectStore } from '@/project/projectStore'
 import { exportProjectJson, importProjectJson } from '@/project/storage'
 import { ReportLayout } from '@/report/ReportLayout'
@@ -398,6 +399,10 @@ export default function App() {
                 </p>
               </CardContent>
             </Card>
+            <StandardDrawingPicker
+              selected={project.standardDrawings}
+              onChange={(ids) => void updateProject({ standardDrawings: ids })}
+            />
             <ReportLayout project={project} sheets={sheets} />
           </div>
         )}

@@ -119,6 +119,8 @@ export interface Project {
   checkerLicense: string
   documentDate: string
   scope: string
+  /** รหัสแบบมาตรฐานที่แนบท้ายรูปเล่ม (ไม่มี = ไม่แนบ) โครงการเก่าไม่มีช่องนี้ */
+  standardDrawings?: string[]
   createdAt: number
   updatedAt: number
 }

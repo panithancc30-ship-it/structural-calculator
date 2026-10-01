@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react'
 import { CRITERIA_PRINT_PAGES } from '../features/design-criteria/criteriaModel'
 import { DesignCriteriaSheets } from '../features/design-criteria/DesignCriteriaSheets'
 import { inputWithTitle, sheetType } from '../features/registry'
+import { StandardDrawingSheets } from '../features/standard-drawings/StandardDrawingSheets'
+import { selectedStandardDrawings } from '../features/standard-drawings/standardDrawings'
 import type { CalcSheet, Project } from '../engine/shared/types'
 import { CoverPage } from './CoverPage'
 import {
@@ -18,12 +20,14 @@ interface Props {
   sheets: CalcSheet[]
 }
 
-/** หน้าปก + สารบัญ = 2 หน้า ตามด้วยเกณฑ์การออกแบบ แล้วจึงเป็นรายการคำนวณ */
+/** หน้าปก + สารบัญ = 2 หน้า ตามด้วยเกณฑ์การออกแบบ รายการคำนวณ และแบบมาตรฐานที่เลือกแนบ */
 const CRITERIA_FIRST_PAGE = 3
 const FIRST_SHEET_PAGE = CRITERIA_FIRST_PAGE + CRITERIA_PRINT_PAGES.length
 
 export function ReportLayout({ project, sheets }: Props) {
-  const totalPages = FIRST_SHEET_PAGE - 1 + sheets.length
+  const drawings = selectedStandardDrawings(project.standardDrawings)
+  const firstDrawingPage = FIRST_SHEET_PAGE + sheets.length
+  const totalPages = firstDrawingPage - 1 + drawings.length
   const [fit, setFit] = useState<FitResult[]>([])
 
   useEffect(() => {
@@ -71,6 +75,8 @@ export function ReportLayout({ project, sheets }: Props) {
           sheets={sheets}
           criteriaPage={CRITERIA_FIRST_PAGE}
           firstSheetPage={FIRST_SHEET_PAGE}
+          drawings={drawings}
+          firstDrawingPage={firstDrawingPage}
         />
         <DesignCriteriaSheets project={project} firstPage={CRITERIA_FIRST_PAGE} totalPages={totalPages} />
         {sheets.map((sheet, index) => (
@@ -85,6 +91,7 @@ export function ReportLayout({ project, sheets }: Props) {
             })}
           </Fragment>
         ))}
+        <StandardDrawingSheets project={project} drawings={drawings} firstPage={firstDrawingPage} totalPages={totalPages} />
       </div>
     </>
   )
