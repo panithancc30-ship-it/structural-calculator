@@ -1,5 +1,11 @@
 import type { Project } from '@/engine/shared/types'
-import { CRITERIA_PRINT_PAGES, CRITERIA_SECTIONS, type CriteriaBlock, type CriteriaSection } from './criteriaModel'
+import {
+  CRITERIA_PRINT_PAGES,
+  printBlocks,
+  resolvePrintPart,
+  type CriteriaBlock,
+  type ResolvedPrintPart,
+} from './criteriaModel'
 
 interface Props {
   project: Project
@@ -7,9 +13,6 @@ interface Props {
   firstPage: number
   totalPages: number
 }
-
-/** เลขหมวดตามลำดับบนหน้าจอ เพื่อให้รูปเล่มกับหน้าจออ้างอิงเลขเดียวกัน */
-const SECTION_BY_ID = new Map(CRITERIA_SECTIONS.map((section, i) => [section.id, { section, number: i + 1 }]))
 
 function BlockBody({ block }: { block: CriteriaBlock }) {
   switch (block.type) {
@@ -26,15 +29,21 @@ function BlockBody({ block }: { block: CriteriaBlock }) {
             </tr>
           </thead>
           <tbody>
-            {block.rows.map((row, r) => (
-              <tr key={r}>
-                {row.map((cell, i) => (
-                  <td key={i} className={block.columns[i].num ? 'num' : undefined}>
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {block.rows.map((row, r) =>
+              row.length === 1 && block.columns.length > 1 ? (
+                <tr key={r} className="criteria-subhead">
+                  <td colSpan={block.columns.length}>{row[0]}</td>
+                </tr>
+              ) : (
+                <tr key={r}>
+                  {row.map((cell, i) => (
+                    <td key={i} className={block.columns[i].num ? 'num' : undefined}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ),
+            )}
           </tbody>
         </table>
       )
@@ -82,8 +91,9 @@ function BlockBody({ block }: { block: CriteriaBlock }) {
   }
 }
 
-function PrintSection({ section, number }: { section: CriteriaSection; number: number }) {
-  const blocks = section.blocks.flatMap((b) => (b.type === 'side-by-side' ? b.blocks : [b]))
+/** หมวดทั้งหมดหรือบางช่วงบล็อก — ช่วงที่ต่อจากหน้าก่อนติดคำว่า "(ต่อ)" ที่หัวหมวด */
+function PrintSection({ section, number, from, to }: ResolvedPrintPart) {
+  const blocks = printBlocks(section).slice(from, to)
   return (
     <>
       {blocks.map((block, i) => {
@@ -94,6 +104,7 @@ function PrintSection({ section, number }: { section: CriteriaSection; number: n
             {i === 0 && (
               <h3 className="criteria-section-title">
                 {number}. {section.title}
+                {from > 0 && ' (ต่อ)'}
               </h3>
             )}
             {title && <div className="criteria-block-title">{title}</div>}
@@ -109,7 +120,7 @@ function PrintSection({ section, number }: { section: CriteriaSection; number: n
 export function DesignCriteriaSheets({ project, firstPage, totalPages }: Props) {
   return (
     <>
-      {CRITERIA_PRINT_PAGES.map((ids, i) => (
+      {CRITERIA_PRINT_PAGES.map((parts, i) => (
         <section
           key={i}
           className="report-page fit-one-page criteria-page"
@@ -127,9 +138,9 @@ export function DesignCriteriaSheets({ project, firstPage, totalPages }: Props) 
           </div>
 
           <div className="criteria-cols">
-            {ids.map((id) => {
-              const entry = SECTION_BY_ID.get(id)
-              return entry && <PrintSection key={id} section={entry.section} number={entry.number} />
+            {parts.map((part) => {
+              const resolved = resolvePrintPart(part)
+              return resolved && <PrintSection key={`${resolved.section.id}-${resolved.from}`} {...resolved} />
             })}
           </div>
 

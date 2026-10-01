@@ -46,6 +46,7 @@ export interface Fact {
 }
 
 export type CriteriaBlock =
+  /** แถวที่มีช่องเดียวในตารางหลายคอลัมน์ คือหัวข้อย่อยที่คร่อมทุกคอลัมน์ */
   | { type: 'table'; title?: string; columns: Column[]; rows: string[][] }
   | { type: 'facts'; title?: string; items: Fact[] }
   /** ordered แสดงเป็นรายการมีเลขข้อ ไม่เช่นนั้นเป็นป้ายสั้น ๆ เรียงต่อกัน */
@@ -63,10 +64,25 @@ export interface CriteriaSection {
 
 const ksc = (v: number) => `${num(v)} ksc`
 
+/** ค่าที่กฎกระทรวง พ.ศ. 2566 ไม่ได้กำหนดไว้ ใช้ค่าเดิมตามที่ผู้ใช้เลือก — บอกที่มาไว้ใต้ตาราง */
+const notIn2566 = (what: string): CriteriaBlock => ({
+  type: 'note',
+  text: `${what} — ${c.reference_standards.values_not_in_2566}`,
+})
+
+/** ตัวคูณแสดงสองตำแหน่งตามกฎกระทรวง เว้นแต่มีหลักที่สาม เช่น 0.625 */
+export const factor = (v: number) => (Math.round(v * 1000) % 10 ? v.toFixed(3) : v.toFixed(2))
+
+/** ช่องแรกที่ซ้ำกับแถวก่อนหน้าเว้นว่าง ให้อ่านเป็นกลุ่มเหมือนเซลล์ผสาน */
+function mergeRepeats(rows: string[][]): string[][] {
+  return rows.map((row, i) => (i > 0 && rows[i - 1][0] === row[0] ? ['', ...row.slice(1)] : row))
+}
+
 function standards(): CriteriaBlock[] {
-  const { laws_and_regulations, other_references } = c.reference_standards
+  const { laws_and_regulations, regulation_notes, other_references } = c.reference_standards
   return [
     { type: 'list', title: 'กฎหมายและข้อบังคับ', items: laws_and_regulations, ordered: true },
+    { type: 'list', title: 'ข้อควรทราบเกี่ยวกับกฎกระทรวง พ.ศ. 2566', items: regulation_notes, ordered: true },
     { type: 'list', title: 'เอกสารอ้างอิงอื่น', items: other_references },
     {
       type: 'facts',
@@ -139,6 +155,7 @@ function concrete(): CriteriaBlock[] {
         ['โมดูลัสยืดหยุ่น (Ec)', formula(s.elastic_modulus.formula), num(s.elastic_modulus.value), NONE],
       ],
     },
+    notIn2566('ค่าในช่อง "ไม่เกิน"'),
   ]
 }
 
@@ -168,7 +185,7 @@ function reinforcingSteel(): CriteriaBlock[] {
     },
     {
       type: 'facts',
-      title: 'ข้อกำหนดตามกฎกระทรวง',
+      title: 'ข้อกำหนดตามกฎกระทรวงเดิม',
       items: [
         { label: 'กำลังครากต่ำสุด', value: ksc(lim.minimum_yield_strength.value) },
         {
@@ -199,6 +216,7 @@ function reinforcingSteel(): CriteriaBlock[] {
         ['เหล็กหล่อ', NONE, num(col.cast_iron.maximum)],
       ],
     },
+    notIn2566('ข้อกำหนดกำลังครากและหน่วยแรงยอมให้ที่กำกับไว้'),
   ]
 }
 
@@ -250,6 +268,7 @@ function structuralSteel(): CriteriaBlock[] {
         },
       ],
     },
+    notIn2566('Fy เมื่อไม่มีผลทดสอบ'),
     {
       type: 'table',
       columns: [{ label: 'หน่วยแรงยอมให้' }, { label: 'สูตร' }, { label: 'ค่า (ksc)', num: true }],
@@ -277,40 +296,86 @@ function structuralSteel(): CriteriaBlock[] {
 }
 
 function loadCombinations(): CriteriaBlock[] {
-  const u = c.load_combinations.ultimate_strength_design
+  const lc = c.load_combinations
+  const comboTable = (method: typeof lc.allowable_stress_design): CriteriaBlock => ({
+    type: 'table',
+    title: method.title,
+    columns: [{ label: 'กรณี' }, { label: 'ชุดน้ำหนักบรรทุก' }],
+    rows: mergeRepeats(method.cases.flatMap(({ case: name, formulas }) => formulas.map((f) => [name, f]))),
+  })
+  const rc = lc.concrete_strength_reduction_factors
+  const steel = lc.steel_resistance_factors
   return [
-    { type: 'note', text: 'สำหรับการออกแบบวิธีกำลังประลัย' },
-    { type: 'formulas', title: 'ไม่คิดแรงลม', items: [u.without_wind.formula] },
-    { type: 'formulas', title: 'คิดแรงลม', items: u.with_wind.map((w) => w.formula) },
-    { type: 'note', text: u.selection },
+    { type: 'note', text: 'รายการคำนวณในโปรแกรมนี้ใช้วิธีหน่วยแรงที่ยอมให้ แรงที่ป้อนจึงเป็นแรงจากชุด S' },
+    comboTable(lc.allowable_stress_design),
+    comboTable(lc.strength_design),
+    { type: 'note', text: lc.selection },
     {
       type: 'facts',
-      items: Object.entries(u.variables).map(([name, meaning]) => ({ label: name, value: meaning })),
+      items: Object.entries(lc.variables).map(([name, meaning]) => ({ label: name, value: meaning })),
+    },
+    {
+      type: 'table',
+      title: rc.title,
+      columns: [
+        { label: 'แรงที่กระทำ' },
+        { label: 'ระบุมาตรฐานและควบคุมคุณภาพ', num: true },
+        { label: 'ไม่ได้ระบุ', num: true },
+      ],
+      rows: rc.values.map((row) => [
+        row.force,
+        factor(row.with_quality_control),
+        factor(row.without_quality_control),
+      ]),
+    },
+    {
+      type: 'table',
+      title: steel.title,
+      columns: [{ label: 'องค์อาคาร' }, { label: 'ตัวคูณ', num: true }],
+      rows: steel.values.map((row) => [row.member, factor(row.value)]),
     },
   ]
 }
 
 function liveLoad(): CriteriaBlock[] {
   const ll = c.live_load
+  const impact = ll.impact_increase
+  // ประเภทอาคารเป็นแถวหัวข้อคร่อมทั้งแถว — ตารางสองคอลัมน์ตัดบรรทัดน้อยกว่าในรูปเล่มที่แบ่งสองคอลัมน์
+  const groupTables = ll.groups.map(
+    ({ group, occupancies }): CriteriaBlock => ({
+      type: 'table',
+      title: group,
+      columns: [{ label: 'ส่วนของอาคาร' }, { label: unit(ll.unit), num: true }],
+      rows: occupancies.flatMap(({ occupancy, areas }) => [
+        ...(occupancy ? [[occupancy]] : []),
+        ...areas.map((a) => [a.area, num(a.value)]),
+      ]),
+    }),
+  )
   return [
+    { type: 'note', text: ll.basis },
+    ...groupTables,
+    { type: 'note', text: ll.special_condition },
     {
       type: 'table',
-      columns: [{ label: 'การใช้งาน' }, { label: `ขั้นต่ำ (${unit(ll.unit)})`, num: true }],
-      rows: ll.minimum_values.map((row) => [row.usage, num(row.value)]),
+      title: 'แรงกระแทก เพิ่มน้ำหนักบรรทุกไม่น้อยกว่า (ข้อ 16)',
+      columns: [{ label: 'โครงสร้าง' }, { label: `เพิ่ม (${unit(impact.unit)})`, num: true }],
+      rows: impact.values.map((row) => [row.structure, num(row.value)]),
     },
-    { type: 'note', text: ll.special_condition },
   ]
 }
 
 function liveLoadReduction(): CriteriaBlock[] {
   const r = c.live_load_reduction
   return [
+    { type: 'note', text: r.applies_to },
     {
       type: 'table',
       columns: [{ label: 'ชั้น' }, { label: `ลดลง (${unit(r.unit)})`, num: true }],
       rows: r.reductions_by_floor.map((row) => [row.floor, num(row.reduction)]),
     },
-    { type: 'list', title: 'อาคารที่ไม่ให้ลดน้ำหนักบรรทุกจร', items: r.buildings_without_reduction },
+    { type: 'list', title: 'อาคารที่ไม่ให้ลดน้ำหนักบรรทุกจร (ข้อ 14)', items: r.buildings_without_reduction },
+    { type: 'note', text: r.heavy_live_load_rule },
   ]
 }
 
@@ -348,22 +413,20 @@ function deadLoad(): CriteriaBlock[] {
         },
       ],
     },
+    { type: 'note', text: c.dead_load.partition_note },
   ]
 }
 
 function windLoad(): CriteriaBlock[] {
   const w = c.wind_load
-  const inc = w.allowable_increase_with_wind
   return [
     {
       type: 'table',
-      columns: [{ label: 'ความสูงของอาคาร' }, { label: `แรงลม (${unit(w.unit)})`, num: true }],
-      rows: w.values.map((row) => [row.height, num(row.value)]),
+      title: `หน่วยแรงลมขั้นต่ำตามสภาพภูมิประเทศ (${unit(w.unit)})`,
+      columns: [{ label: 'ส่วนของอาคาร' }, ...w.terrains.map((t) => ({ label: t.terrain, num: true }))],
+      rows: w.heights.map((height, i) => [height, ...w.terrains.map((t) => num(t.values[i]))]),
     },
-    {
-      type: 'note',
-      text: `เมื่อรวมแรงลม เพิ่มหน่วยแรงยอมให้ได้ไม่เกิน ${num(inc.maximum)}${unit(inc.unit)}`,
-    },
+    { type: 'list', title: 'เงื่อนไข', items: w.conditions, ordered: true },
   ]
 }
 
@@ -375,6 +438,7 @@ function soilBearing(): CriteriaBlock[] {
       columns: [{ label: 'ชนิดดิน' }, { label: `ยอมให้ (${unit(s.unit)})`, num: true }],
       rows: s.values.map((row) => [row.soil_type, num(row.value)]),
     },
+    notIn2566('ตารางนี้'),
   ]
 }
 
@@ -422,22 +486,37 @@ function pileFoundation(): CriteriaBlock[] {
         ['ทรุดตัวสุทธิหลังถอนน้ำหนักออก', limit(st.net_settlement_after_unloading)],
       ],
     },
+    notIn2566('ค่าในหมวดนี้'),
   ]
 }
 
-function fireCover(): CriteriaBlock[] {
+function fire(): CriteriaBlock[] {
+  const r = c.fire_resistance_rating
   const f = c.fire_resistance_cover
-  const groups = [
-    { title: 'คอนกรีตเสริมเหล็ก', rows: f.reinforced_concrete },
-    { title: 'คอนกรีตอัดแรง', rows: f.prestressed_concrete },
-    { title: 'เหล็กรูปพรรณ', rows: f.structural_steel },
+  const coverGroups = [
+    { title: 'ระยะหุ้ม คอนกรีตเสริมเหล็ก', rows: f.reinforced_concrete },
+    { title: 'ระยะหุ้ม คอนกรีตอัดแรง', rows: f.prestressed_concrete },
+    { title: 'ระยะหุ้ม เหล็กรูปพรรณ', rows: f.structural_steel },
   ]
-  return groups.map(({ title, rows }) => ({
-    type: 'table',
-    title,
-    columns: [{ label: 'ชิ้นส่วน' }, { label: `ระยะหุ้มต่ำสุด (${unit(f.unit)})`, num: true }],
-    rows: rows.map((row) => [row.member, num(row.minimum_cover)]),
-  }))
+  return [
+    { type: 'list', title: 'อาคารที่โครงสร้างหลักต้องทนไฟ (ข้อ 22)', items: r.applies_to, ordered: true },
+    {
+      type: 'table',
+      title: 'อัตราการทนไฟของโครงสร้างหลัก (ข้อ 23)',
+      columns: [{ label: 'ตำแหน่ง' }, { label: 'โครงสร้างหลัก' }, { label: `ไม่น้อยกว่า (${r.unit})`, num: true }],
+      rows: mergeRepeats(r.values.map((row) => [row.location, row.members, row.hours])),
+    },
+    { type: 'list', items: r.notes, ordered: true },
+    { type: 'note', text: f.note },
+    ...coverGroups.map(
+      ({ title, rows }): CriteriaBlock => ({
+        type: 'table',
+        title,
+        columns: [{ label: 'ชิ้นส่วน' }, { label: `ระยะหุ้มต่ำสุด (${unit(f.unit)})`, num: true }],
+        rows: rows.map((row) => [row.member, num(row.minimum_cover)]),
+      }),
+    ),
+  ]
 }
 
 export const CRITERIA_SECTIONS: CriteriaSection[] = [
@@ -453,17 +532,51 @@ export const CRITERIA_SECTIONS: CriteriaSection[] = [
   { id: 'dc-wind', title: 'แรงลม', blocks: windLoad() },
   { id: 'dc-soil', title: 'กำลังแบกทานของดิน', blocks: soilBearing() },
   { id: 'dc-pile', title: 'เสาเข็ม', blocks: pileFoundation() },
-  { id: 'dc-fire', title: 'ระยะหุ้มกันไฟ', blocks: fireCover() },
+  { id: 'dc-fire', title: 'การทนไฟ', blocks: fire() },
 ]
 
 /**
- * หมวดในแต่ละหน้าของรูปเล่ม ต้องเรียงตาม CRITERIA_SECTIONS และครบทุกหมวด
- * แบ่งให้แต่ละหน้าลง A4 ได้โดยไม่ต้องย่อ — ถ้าแก้ข้อมูลจนล้น แท็บ "พิมพ์รูปเล่ม" จะแจ้งเตือน
+ * ส่วนของหมวดที่พิมพ์ในหน้าหนึ่ง: ทั้งหมวด (ใส่แค่ id) หรือช่วงบล็อก [from, to) ของหมวดที่ยาวเกินหนึ่งหน้า
+ * เลขบล็อกนับจาก printBlocks() ซึ่งแตกบล็อกที่วางคู่กันออกเป็นบล็อกเดี่ยวแล้ว
  */
-export const CRITERIA_PRINT_PAGES: string[][] = [
-  ['dc-standards', 'dc-concrete', 'dc-rebar', 'dc-wsd'],
-  ['dc-steel', 'dc-combo', 'dc-dead', 'dc-live'],
-  ['dc-live-reduction', 'dc-wind', 'dc-soil', 'dc-pile', 'dc-fire'],
+export type CriteriaPrintPart = string | { id: string; from?: number; to?: number }
+
+/** บล็อกของหมวดตามลำดับในรูปเล่ม — รูปเล่มแบ่งสองคอลัมน์อยู่แล้ว บล็อกที่วางคู่กันจึงเรียงต่อกัน */
+export function printBlocks(section: CriteriaSection): CriteriaBlock[] {
+  return section.blocks.flatMap((b) => (b.type === 'side-by-side' ? b.blocks : [b]))
+}
+
+export interface ResolvedPrintPart {
+  section: CriteriaSection
+  /** เลขหมวดตามลำดับบนหน้าจอ */
+  number: number
+  from: number
+  to: number
+}
+
+const SECTION_INDEX = new Map(CRITERIA_SECTIONS.map((s, i) => [s.id, i]))
+
+export function resolvePrintPart(part: CriteriaPrintPart): ResolvedPrintPart | undefined {
+  const { id, from = 0, to } = typeof part === 'string' ? { id: part } : part
+  const index = SECTION_INDEX.get(id)
+  if (index === undefined) return undefined
+  const section = CRITERIA_SECTIONS[index]
+  return { section, number: index + 1, from, to: to ?? printBlocks(section).length }
+}
+
+/**
+ * หมวดในแต่ละหน้าของรูปเล่ม ต้องเรียงตาม CRITERIA_SECTIONS และครบทุกบล็อก
+ * แบ่งให้แต่ละหน้าลง A4 ได้โดยไม่ต้องย่อ — ถ้าแก้ข้อมูลจนล้น แท็บ "พิมพ์รูปเล่ม" จะแจ้งเตือน
+ * หมวดน้ำหนักบรรทุกจรตามกฎกระทรวง พ.ศ. 2566 ยาวเกินหนึ่งหน้า จึงแบ่งพิมพ์สองหน้า (กลุ่ม 1–2 และกลุ่ม 3–7)
+ */
+export const CRITERIA_PRINT_PAGES: CriteriaPrintPart[][] = [
+  ['dc-standards', 'dc-concrete'],
+  ['dc-rebar', 'dc-wsd', 'dc-steel'],
+  ['dc-combo'],
+  ['dc-dead', { id: 'dc-live', to: 3 }],
+  [{ id: 'dc-live', from: 3 }],
+  ['dc-live-reduction', 'dc-wind', 'dc-soil', 'dc-pile'],
+  ['dc-fire'],
 ]
 
 /** ค่าหลักที่แสดงเด่นบนหัวหน้าจอ */

@@ -10,13 +10,14 @@ type Edited = Record<SectionKey, boolean>;
 
 /**
  * ค่าเริ่มต้น: ระเบียงบ้านพักอาศัย ยื่น 1.00 ม. หนา 10 ซม. ปูกระเบื้อง มีผนังอิฐมอญกันตกสูง 1.00 ม. ที่ปลาย
- * น้ำหนักตามหน้า Design Criteria — ปูผิว 120, ที่พักอาศัย 150 กก./ตร.ม., ผนังอิฐมอญ 180 กก./ตร.ม.
+ * น้ำหนักตามหน้า Design Criteria — ปูผิว 120, ระเบียงบ้านพักอาศัย 200 กก./ตร.ม. (กฎกระทรวง พ.ศ. 2566),
+ * ผนังอิฐมอญ 180 กก./ตร.ม.
  */
 export const DEFAULT_LEDGE: LedgeBeamInput = {
   slabLength: 1,
   slabT: 10,
   finishDL: 120,
-  LL: 150,
+  LL: 200,
   tipWallH: 1,
   tipWallW: 180,
   beamWallH: 0,

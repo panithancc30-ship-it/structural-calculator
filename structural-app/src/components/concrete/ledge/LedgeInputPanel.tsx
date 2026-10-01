@@ -49,7 +49,7 @@ export function LedgeInputPanel({ loads }: { loads: LedgeLoads | null }) {
             label="น้ำหนักใช้งาน (จร)"
             unit="กก./ตร.ม."
             step={50}
-            hint="กันสาด 100 · ที่พักอาศัย 150 · อาคารพาณิชย์ 300"
+            hint="กันสาดคอนกรีต 100 · ระเบียงบ้านพักอาศัย 200 · ส่วนพาณิชย์ของตึกแถว 300"
             {...num('LL')}
           />
           <NumberField

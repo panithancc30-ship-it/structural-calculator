@@ -28,18 +28,26 @@ function BlockBody({ block }: { block: CriteriaBlock }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {block.rows.map((row, r) => (
-              <TableRow key={r}>
-                {row.map((cell, i) => (
-                  <TableCell
-                    key={i}
-                    className={block.columns[i].num ? 'text-right tabular-nums' : 'whitespace-normal'}
-                  >
-                    {cell}
+            {block.rows.map((row, r) =>
+              row.length === 1 && block.columns.length > 1 ? (
+                <TableRow key={r} className="bg-muted/30 hover:bg-muted/30">
+                  <TableCell colSpan={block.columns.length} className="whitespace-normal font-medium">
+                    {row[0]}
                   </TableCell>
-                ))}
-              </TableRow>
-            ))}
+                </TableRow>
+              ) : (
+                <TableRow key={r}>
+                  {row.map((cell, i) => (
+                    <TableCell
+                      key={i}
+                      className={block.columns[i].num ? 'text-right tabular-nums' : 'whitespace-normal'}
+                    >
+                      {cell}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ),
+            )}
           </TableBody>
         </Table>
       )
@@ -146,7 +154,7 @@ export function DesignCriteriaPage() {
             <Badge variant="outline">ข้อมูลอ้างอิง</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            เกณฑ์และค่าที่ใช้ในการออกแบบ ตามกฎกระทรวงและมาตรฐาน วสท. แสดงเพื่ออ้างอิงเท่านั้น
+            เกณฑ์และค่าที่ใช้ในการออกแบบ ตามกฎกระทรวง พ.ศ. 2566 และมาตรฐาน วสท. แสดงเพื่ออ้างอิงเท่านั้น
             ไม่ได้ใช้ในสูตรของรายการคำนวณ · พิมพ์รวมในรูปเล่มต่อจากสารบัญ
           </p>
         </CardHeader>

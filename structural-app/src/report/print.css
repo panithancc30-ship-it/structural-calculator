@@ -346,6 +346,11 @@
   text-align: right;
 }
 
+.criteria-page .report-table .criteria-subhead td {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
 .criteria-facts th {
   width: 55%;
 }
