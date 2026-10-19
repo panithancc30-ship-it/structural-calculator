@@ -9,6 +9,9 @@ const STATUS_TEXT: Record<CheckStatus, string> = {
   warn: 'ควรตรวจสอบ',
 }
 
+/** ช่องผลของแต่ละรายการตรวจสอบในรูปเล่ม: รายการที่ไม่ผ่านเว้นว่าง (หน้ารายการคำนวณบนจอยังแสดงตามปกติ) */
+const ROW_STATUS_TEXT: Record<CheckStatus, string> = { ...STATUS_TEXT, fail: '' }
+
 export interface InputRow {
   label: string
   /** ช่องข้อมูลสามช่องต่อหนึ่งแถว ให้ตารางสั้นพอลงหนึ่งหน้า */
@@ -68,7 +71,7 @@ function ConcreteCheckTable({ checks }: { checks: CheckItem[] }) {
                   <td>{c.label}</td>
                   <td className="num">{c.required}</td>
                   <td className="num">{c.provided}</td>
-                  <td style={{ fontWeight: 700 }}>{STATUS_TEXT[c.status]}</td>
+                  <td style={{ fontWeight: 700 }}>{ROW_STATUS_TEXT[c.status]}</td>
                 </tr>
               </Fragment>
             ))}
