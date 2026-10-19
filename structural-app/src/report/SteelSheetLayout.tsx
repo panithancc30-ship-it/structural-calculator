@@ -15,6 +15,9 @@ const STATUS_TEXT: Record<CheckStatus, string> = {
   warn: 'ควรตรวจสอบ',
 }
 
+/** ช่องผลของแต่ละรายการตรวจสอบในรูปเล่ม: รายการที่ไม่ผ่านเว้นว่าง (หน้ารายการคำนวณบนจอยังแสดงตามปกติ) */
+const ROW_STATUS_TEXT: Record<CheckStatus, string> = { ...STATUS_TEXT, fail: '' }
+
 export type Row = [string, string]
 
 interface Props {
@@ -181,7 +184,7 @@ export function SteelSheetLayout({
                 {fmtSymbolValue(check.allowableSymbol, check.allowable, check.unit)}
               </td>
               <td className="num">{fmt(check.ratio, 2)}</td>
-              <td style={{ fontWeight: 700 }}>{STATUS_TEXT[check.status]}</td>
+              <td style={{ fontWeight: 700 }}>{ROW_STATUS_TEXT[check.status]}</td>
             </tr>
           ))}
         </tbody>
