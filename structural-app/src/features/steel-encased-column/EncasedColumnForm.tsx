@@ -78,6 +78,8 @@ export function EncasedColumnForm({ value, onChange }: Props) {
           <Button
             variant="outline"
             size="sm"
+            // ข้อความยาว — จอแคบให้ตัดบรรทัดในปุ่ม ไม่ล้นกรอบ
+            className="max-sm:h-auto max-sm:min-h-7 max-sm:py-1 max-sm:whitespace-normal"
             disabled={fitsAlready}
             onClick={() => onChange({ ...value, width: minSize.width, depth: minSize.depth })}
           >

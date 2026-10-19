@@ -315,7 +315,7 @@ export function SectionPicker({
                 </p>
                 <ul className="divide-y rounded-md border">
                   {suggestions.map((s) => (
-                    <li key={s.sectionId} className="flex items-center gap-2 px-2 py-1.5">
+                    <li key={s.sectionId} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-2 py-1.5">
                       <Button
                         variant={s.sectionId === value.sectionId ? 'secondary' : 'ghost'}
                         size="sm"
@@ -326,7 +326,7 @@ export function SectionPicker({
                         ใช้
                       </Button>
                       <span className="grow text-sm font-medium">{s.name}</span>
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
                         {fmt(s.weight, weightDecimals(s.weight))} กก./ม. · ใช้กำลัง {fmt(s.maxRatio * 100, 0)}%
                       </span>
                     </li>

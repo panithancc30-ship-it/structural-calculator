@@ -99,6 +99,13 @@
   color: #fff;
 }
 
+/* จอโทรศัพท์ — ตัวเลือกยาวตัดบรรทัดในปุ่มแทนการดันแถวให้กว้างเกินจอ */
+@media (max-width: 480px) {
+  .rc-scope .seg button {
+    white-space: normal;
+  }
+}
+
 .rc-scope .seg.dark {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.28);
@@ -122,6 +129,8 @@
 
 /* ---------- input panel ---------- */
 .rc-scope .input-panel fieldset {
+  /* fieldset ตั้งต้น min-inline-size: min-content — ให้หดตามคอลัมน์ได้ */
+  min-width: 0;
   border: 0;
   margin: 0 0 12px;
   padding: 0 0 14px;
@@ -263,6 +272,7 @@
 
 .rc-scope .summary .steps-details {
   flex-basis: 100%;
+  min-width: 0;
 }
 
 .rc-scope .note {
@@ -307,7 +317,7 @@
 
 @media (max-width: 1280px) {
 .rc-scope .sections {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -629,7 +639,7 @@
 
 @media (max-width: 1280px) {
 .rc-scope .column-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -655,7 +665,7 @@
 
 @media (max-width: 1280px) {
 .rc-scope .footing-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

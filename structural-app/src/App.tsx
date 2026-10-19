@@ -152,7 +152,8 @@ export default function App() {
               </p>
             </div>
             <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-              <TabsList>
+              {/* จอแคบ (โทรศัพท์) ให้แท็บตัดขึ้นบรรทัดใหม่ แทนที่จะดันหน้าจอให้กว้างเกินจอ */}
+              <TabsList className="max-sm:flex-wrap max-sm:group-data-horizontal/tabs:h-auto">
                 {TABS.map(({ id, label, icon: Icon }) => (
                   <TabsTrigger key={id} value={id} className="gap-1.5">
                     <Icon className="size-4" />
@@ -227,8 +228,9 @@ export default function App() {
         {tab === 'criteria' && <DesignCriteriaPage />}
 
         {tab === 'calc' && (
+          // grid-cols-1 = minmax(0, 1fr) — จอแคบเรียงคอลัมน์เดียว ไม่ให้ตารางผลลัพธ์ที่กว้างดันคอลัมน์ให้เกินจอ
           <div
-            className={`grid gap-6 ${
+            className={`grid grid-cols-1 gap-6 ${
               wide
                 ? 'lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]'
                 : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]'

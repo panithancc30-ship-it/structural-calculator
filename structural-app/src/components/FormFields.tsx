@@ -114,9 +114,10 @@ export function TextField({
 
 export function FieldGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="rounded-lg border bg-card p-4 shadow-xs">
+    // fieldset ตั้งต้นกว้างไม่น้อยกว่าเนื้อหา (min-inline-size: min-content) — min-w-0 ให้หดตามจอแคบได้
+    <fieldset className="min-w-0 rounded-lg border bg-card p-4 shadow-xs">
       <legend className="px-1.5 text-sm font-semibold text-foreground">{title}</legend>
-      <div className="grid gap-4 pt-1 sm:grid-cols-2">{children}</div>
+      <div className="grid grid-cols-1 gap-4 pt-1 sm:grid-cols-2">{children}</div>
     </fieldset>
   )
 }

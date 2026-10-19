@@ -170,7 +170,7 @@ export function DesignCriteriaPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <nav className="sticky top-28 hidden self-start lg:block">
           <ul className="space-y-0.5 border-l">
             {CRITERIA_SECTIONS.map(({ id, title }) => (
