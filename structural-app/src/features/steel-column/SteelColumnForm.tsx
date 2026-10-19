@@ -47,7 +47,7 @@ export function SteelColumnForm({ value, onChange }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <FieldGroup title="แรงกระทำ (ผู้ใช้คำนวณมาแล้ว)">
         <NumberField
           label="แรงตามแกน, P"

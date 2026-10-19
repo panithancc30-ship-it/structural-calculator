@@ -138,10 +138,14 @@ export default function App() {
     return <div className="p-8 text-muted-foreground">กำลังโหลด...</div>
   }
 
+  // แท็บรายการคำนวณบนจอกว้าง: ข้อมูลนำเข้ากับผลคำนวณเป็นสองช่องเต็มความสูงจอ เลื่อนแยกกัน
+  // กรอกตัวเลขทางซ้ายแล้วเห็นผลทางขวาทันที ไม่ต้องเลื่อนทั้งหน้าไปมา
+  const workspace = tab === 'calc'
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="no-print sticky top-0 z-20 border-b bg-card/85 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-6 py-4">
+    <div className={`min-h-screen bg-background ${workspace ? 'lg:flex lg:h-dvh lg:min-h-0 lg:flex-col' : ''}`}>
+      <header className="no-print sticky top-0 z-20 shrink-0 border-b bg-card/85 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-6 py-2.5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-foreground">
@@ -165,7 +169,11 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`mx-auto px-6 py-6 ${wide && tab === 'calc' ? 'max-w-[1700px]' : 'max-w-7xl'}`}>
+      <main
+        className={`mx-auto w-full px-6 ${workspace ? 'py-3 lg:min-h-0 lg:flex-1' : 'py-6'} ${
+          wide && workspace ? 'max-w-[1700px]' : 'max-w-7xl'
+        }`}
+      >
         {tab === 'project' && (
           <Card className="max-w-3xl">
             <CardHeader>
@@ -228,50 +236,36 @@ export default function App() {
 
         {tab === 'calc' && (
           <div
-            className={`grid gap-6 ${
+            className={`grid gap-4 lg:h-full ${
               wide
-                ? 'lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]'
+                ? 'lg:grid-cols-[minmax(0,430px)_minmax(0,1fr)]'
                 : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]'
             }`}
           >
-            <div className="space-y-4">
-              <Card>
-                <CardContent className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label>ชนิดรายการคำนวณ</Label>
-                    <div className="space-y-2">
-                      {SHEET_TYPES_BY_GROUP.map(({ group, types }) => (
-                        <div key={group} className="flex flex-wrap items-center gap-2">
-                          <span className="w-40 shrink-0 text-xs text-muted-foreground">
-                            {GROUP_LABEL[group]}
-                          </span>
-                          {types.map(({ kind, label, icon: Icon, description }) => (
-                            <Tooltip key={kind}>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant={kind === draftKind ? 'default' : 'outline'}
-                                  size="sm"
-                                  onClick={() => changeKind(kind)}
-                                >
-                                  <Icon className="size-4" />
-                                  {label}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{description}</TooltipContent>
-                            </Tooltip>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                    {activeSheetId && (
-                      <p className="text-xs text-muted-foreground">
-                        การเปลี่ยนชนิดจะเริ่มรายการใหม่ เพราะข้อมูลนำเข้าคนละชุดกัน
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div className="min-w-56 grow">
+            <div className="space-y-3 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+              {/* ชนิดรายการเป็นรายการเลือกแถวเดียว (เดิมเป็นปุ่มหลายแถว) ให้ช่องกรอกข้อมูลขึ้นมาอยู่ในจอเดียวกับผล */}
+              <Card size="sm">
+                <CardContent className="space-y-1.5">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="min-w-36 grow basis-36 space-y-0.5">
+                      <span className="text-xs font-medium">ชนิดรายการคำนวณ</span>
+                      <select
+                        value={draftKind}
+                        onChange={(e) => changeKind(e.target.value as CalcSheetKind)}
+                        className="h-7 w-full rounded-lg border border-input bg-transparent px-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        {SHEET_TYPES_BY_GROUP.map(({ group, types }) => (
+                          <optgroup key={group} label={GROUP_LABEL[group]}>
+                            {types.map(({ kind, label }) => (
+                              <option key={kind} value={kind}>
+                                {label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="min-w-36 grow basis-36">
                       <TextField
                         label="ชื่อรายการ"
                         value={draftTitle}
@@ -279,35 +273,41 @@ export default function App() {
                         placeholder="เช่น คานเหล็ก SB1 ชั้น 2"
                       />
                     </div>
-                    <Button onClick={() => void handleSave()}>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={() => void handleSave()}>
                       <Save className="size-4" />
                       {activeSheetId ? 'บันทึกการแก้ไข' : 'บันทึกเข้ารูปเล่ม'}
                     </Button>
-                    <Button variant="outline" onClick={() => startNewSheet()}>
+                    <Button size="sm" variant="outline" onClick={() => startNewSheet()}>
                       <FilePlus2 className="size-4" />
                       รายการใหม่
                     </Button>
+                    {activeSheetId && (
+                      <span className="text-xs text-muted-foreground">เปลี่ยนชนิดจะเริ่มรายการใหม่</span>
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
               {type.renderForm(draftValue, setDraftInput)}
 
-              <Card>
-                <CardContent className="space-y-1.5">
+              <Card size="sm">
+                <CardContent className="space-y-1">
                   <Label htmlFor="remarks">หมายเหตุของวิศวกร (แสดงท้ายรายการคำนวณ)</Label>
                   <Textarea
                     id="remarks"
                     value={draftRemarks}
                     onChange={(e) => setDraftRemarks(e.target.value)}
-                    rows={3}
+                    rows={2}
+                    className="min-h-12"
                     placeholder="เช่น สมมติฐานการรับน้ำหนัก, ข้อสังเกตเพิ่มเติม"
                   />
                 </CardContent>
               </Card>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
               {type.renderResult(draftValue)}
 
               <Card>
