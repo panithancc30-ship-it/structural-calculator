@@ -243,29 +243,31 @@ export default function App() {
             }`}
           >
             <div className="space-y-3 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
-              {/* ชนิดรายการเป็นรายการเลือกแถวเดียว (เดิมเป็นปุ่มหลายแถว) ให้ช่องกรอกข้อมูลขึ้นมาอยู่ในจอเดียวกับผล */}
+              {/* ชนิดรายการเป็นปุ่มเล็กเห็นครบทุกชนิด (เหล็ก / คอนกรีต) — ชื่อรายการกับปุ่มบันทึกอยู่แถวเดียวกัน */}
               <Card size="sm">
                 <CardContent className="space-y-1.5">
+                  {SHEET_TYPES_BY_GROUP.map(({ group, types }) => (
+                    <div key={group} className="flex flex-wrap items-center gap-1">
+                      <span className="mr-1 text-xs font-medium text-muted-foreground">{GROUP_LABEL[group]}</span>
+                      {types.map(({ kind, label, icon: Icon, description }) => (
+                        <Tooltip key={kind}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={kind === draftKind ? 'default' : 'outline'}
+                              size="xs"
+                              onClick={() => changeKind(kind)}
+                            >
+                              <Icon className="size-3.5" />
+                              {label}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{description}</TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  ))}
                   <div className="flex flex-wrap items-end gap-2">
-                    <label className="min-w-36 grow basis-36 space-y-0.5">
-                      <span className="text-xs font-medium">ชนิดรายการคำนวณ</span>
-                      <select
-                        value={draftKind}
-                        onChange={(e) => changeKind(e.target.value as CalcSheetKind)}
-                        className="h-7 w-full rounded-lg border border-input bg-transparent px-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      >
-                        {SHEET_TYPES_BY_GROUP.map(({ group, types }) => (
-                          <optgroup key={group} label={GROUP_LABEL[group]}>
-                            {types.map(({ kind, label }) => (
-                              <option key={kind} value={kind}>
-                                {label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="min-w-36 grow basis-36">
+                    <div className="min-w-40 grow basis-40">
                       <TextField
                         label="ชื่อรายการ"
                         value={draftTitle}
@@ -273,8 +275,6 @@ export default function App() {
                         placeholder="เช่น คานเหล็ก SB1 ชั้น 2"
                       />
                     </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" onClick={() => void handleSave()}>
                       <Save className="size-4" />
                       {activeSheetId ? 'บันทึกการแก้ไข' : 'บันทึกเข้ารูปเล่ม'}
@@ -283,10 +283,12 @@ export default function App() {
                       <FilePlus2 className="size-4" />
                       รายการใหม่
                     </Button>
-                    {activeSheetId && (
-                      <span className="text-xs text-muted-foreground">เปลี่ยนชนิดจะเริ่มรายการใหม่</span>
-                    )}
                   </div>
+                  {activeSheetId && (
+                    <p className="text-xs text-muted-foreground">
+                      การเปลี่ยนชนิดจะเริ่มรายการใหม่ เพราะข้อมูลนำเข้าคนละชุดกัน
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
