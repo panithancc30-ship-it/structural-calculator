@@ -22,7 +22,7 @@ function importFromColumn(): Partial<PileCapInput> {
   };
 }
 
-export function PileCapInputPanel({ design }: { design: { arrangement: PileArrangement; t: number } | null }) {
+export function PileCapInputPanel({ design }: { design: { arrangement: PileArrangement; t: number; B: number; L: number } | null }) {
   const input = usePileCapStore((s) => s.input);
   const setInput = usePileCapStore((s) => s.setInput);
   const num = (key: NumericKey) => ({
@@ -119,6 +119,26 @@ export function PileCapInputPanel({ design }: { design: { arrangement: PileArran
         <legend>ฐานราก</legend>
         <div className="grid2">
           <Segmented<AutoMode>
+            label="ขนาดแปลน Bx × By"
+            value={input.sizeMode}
+            options={[
+              { value: 'auto', label: 'อัตโนมัติ' },
+              { value: 'manual', label: 'กำหนดเอง' },
+            ]}
+            onChange={(sizeMode) => setInput(sizeMode === 'manual' && design ? { sizeMode, B: design.B, L: design.L } : { sizeMode })}
+          />
+          {input.sizeMode === 'manual' ? (
+            <>
+              <NumberField label="ด้าน Bx (แนวแกน x)" unit="ซม." step={5} {...num('B')} />
+              <NumberField label="ด้าน By (แนวแกน y)" unit="ซม." step={5} {...num('L')} />
+            </>
+          ) : (
+            <div className="field span2">
+              <span className="field-label">ขนาดที่ได้</span>
+              <span className="auto-dims">{design ? `${fmt(design.B / 100, 2)} × ${fmt(design.L / 100, 2)} ม.` : '—'}</span>
+            </div>
+          )}
+          <Segmented<AutoMode>
             label="ความหนา t"
             value={input.thicknessMode}
             options={[
@@ -136,12 +156,20 @@ export function PileCapInputPanel({ design }: { design: { arrangement: PileArran
             </div>
           )}
           <span className="field-hint span2">
-            ขนาดแปลน Bx × By = กรอบเสาเข็ม + ระยะขอบ (ปัดทีละ {K.sizeStep} ซม.) — ความหนาอัตโนมัติ: น้อยสุดที่ d ≥ {K.minDepthAboveSteel} ซม. ดัด เฉือน และเฉือนทะลุผ่าน
+            ขนาดอัตโนมัติ = กรอบเสาเข็ม + ระยะขอบ (ปัดทีละ {K.sizeStep} ซม.) — ความหนาอัตโนมัติ: น้อยสุดที่{' '}
+            {count === 1 ? `ความลึกเหนือหัวเข็ม ≥ ${K.minDepthAboveSteel} ซม.` : `d ≥ ${K.minDepthAboveSteel} ซม. ดัด เฉือน`} และเฉือนทะลุผ่าน
+            — แตะตัวเลขบอกระยะในรูปเพื่อแก้ได้เช่นกัน
           </span>
           <NumberField label="ระยะหุ้ม covering" unit="ซม." step={0.5} {...num('cover')} />
-          <NumberField label="หัวเข็มฝังในฐาน" unit="ซม." step={0.5} {...num('embed')} />
+          {count === 1 ? (
+            <NumberField label="หัวเข็มฝังในฐาน (เข็มต้นเดียว)" unit="ซม." step={5} {...num('embedSingle')} />
+          ) : (
+            <NumberField label="หัวเข็มฝังในฐาน" unit="ซม." step={0.5} {...num('embed')} />
+          )}
           <NumberField label="ความลึกท้องฐาน Df" unit="ม." step={0.1} {...num('Df')} />
           <NumberField label="หน่วยน้ำหนักดิน γs" unit="t/m³" step={0.1} {...num('gammaSoil')} />
+          <NumberField label="คอนกรีตหยาบ 1:3:5" unit="ซม." step={1} {...num('lean')} />
+          <NumberField label="ทรายราดน้ำอัดแน่น" unit="ซม." step={1} {...num('sand')} />
         </div>
       </fieldset>
 
@@ -168,6 +196,9 @@ export function PileCapInputPanel({ design }: { design: { arrangement: PileArran
       <fieldset>
         <legend>เหล็กเสริม</legend>
         <BarSelect label="ขนาดเหล็กที่ต้องการ (ขยับขนาดอัตโนมัติเมื่อจำเป็น)" value={input.bar} sizes={MAIN_BAR_SIZES} onChange={(bar) => setInput({ bar })} />
+        {count === 1 && (
+          <span className="field-hint">เข็มต้นเดียว: เหล็กยืน 8 เส้น + ปลอก 2ป (รอบนอก + ข้าวหลามตัด) ตามแบบมาตรฐาน — แก้ได้ที่เหล็กในรูป</span>
+        )}
       </fieldset>
     </div>
   );

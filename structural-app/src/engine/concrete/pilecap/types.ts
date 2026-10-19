@@ -1,3 +1,4 @@
+import type { FootingLayout } from '../footing/types';
 import type { BarName } from '../rebar';
 
 export type PileShape = 'square' | 'circle';
@@ -44,11 +45,20 @@ export interface PileCapInput {
   /** ระยะเยื้องเข็มหลังตอก เรียงตามหมายเลขเข็ม (เก็บครบ 9 ต้น) */
   offsets: PileOffset[];
 
+  /** ขนาดแปลน: อัตโนมัติ = กรอบเข็ม + ระยะขอบ, กำหนดเอง = Bx × By ที่กรอก */
+  sizeMode: AutoMode;
+  B: number;
+  L: number;
   thicknessMode: AutoMode;
   t: number;
   cover: number;
-  /** ระยะหัวเข็มฝังในฐานราก */
+  /** ระยะหัวเข็มฝังในฐานราก (เข็มกลุ่ม — เหล็กล่างวางเหนือหัวเข็ม) */
   embed: number;
+  /** ระยะหัวเข็มฝังในฐานราก (เข็มต้นเดียว — หัวเข็มอยู่ในกรงเหล็กยืน) */
+  embedSingle: number;
+  /** ความหนาคอนกรีตหยาบ 1:3:5 และทรายรองพื้นใต้ฐานราก (ใช้เขียนแบบ) */
+  lean: number;
+  sand: number;
 
   /** ความลึกจากผิวดินถึงท้องฐานราก (ม.) */
   Df: number;
@@ -75,4 +85,20 @@ export interface PileCapDims {
   /** ด้านตามแกน y (By) */
   L: number;
   t: number;
+}
+
+/**
+ * เหล็กเสริมฐานรากเข็มต้นเดียวตามแบบมาตรฐาน: เหล็กยืน 8 เส้น (มุม 4 + กลางด้าน 4) งอเป็นรูปตัว U
+ * ผ่านท้องฐาน งอฉากที่ผิวบน และปลอก 2 ชุดต่อชั้น (ปลอกรอบนอก + ปลอกข้าวหลามตัดยึดเหล็กกลางด้าน)
+ */
+export interface PileCapCage {
+  size: BarName;
+  tie: BarName;
+  /** ระยะเรียงปลอก (ซม.) */
+  tieSpacing: number;
+}
+
+export interface PileCapLayout extends FootingLayout {
+  /** เข็มต้นเดียวเท่านั้น — ไม่มีค่า = ใช้เหล็กตะแกรง/ตะกร้อ x, y ตามเดิม */
+  cage?: PileCapCage;
 }

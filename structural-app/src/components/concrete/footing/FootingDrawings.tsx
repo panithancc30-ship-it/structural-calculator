@@ -58,8 +58,16 @@ export function usePickHandlers<P>({ interactive, onPick }: {
       : {};
 }
 
-/** เส้นบอกขนาด + เครื่องหมายขีด 45° — เส้นยื่นไปถึงตัวเลขที่ย้ายออกนอกช่วง */
-export function Dim({ line, size, u }: { line: DimLine; size: number; u: number }) {
+/**
+ * เส้นบอกขนาด + เครื่องหมายขีด 45° — เส้นยื่นไปถึงตัวเลขที่ย้ายออกนอกช่วง
+ * pickText: ตัวจัดการแตะตัวเลขแต่ละช่วง (แก้ระยะจากรูป) — คืน {} เมื่อช่วงนั้นแก้ไม่ได้
+ */
+export function Dim({ line, size, u, pickText }: {
+  line: DimLine;
+  size: number;
+  u: number;
+  pickText?: (index: number) => { className?: string; onClick?: (e: MouseEvent<SVGElement>) => void };
+}) {
   if (line.ticks.length === 0) return null;
   const { row, vertical } = line;
   let lo = line.ticks[0] - 1.2 * u;
@@ -80,14 +88,26 @@ export function Dim({ line, size, u }: { line: DimLine; size: number; u: number 
       <g fill={INK} fontSize={size} textAnchor="middle">
         {line.texts.map((t, i) => {
           const base = dimBaseline(row, t.side, size, u);
-          return vertical ? (
-            <text key={i} transform={`translate(${base},${t.center}) rotate(-90)`}>
-              {t.text}
-            </text>
+          const { className, ...handlers } = pickText?.(i) ?? {};
+          const w = textWidth(t.text, size) + 1.2 * u;
+          const h = size * 1.4;
+          const label = vertical ? (
+            <text transform={`translate(${base},${t.center}) rotate(-90)`}>{t.text}</text>
           ) : (
-            <text key={i} x={t.center} y={base}>
+            <text x={t.center} y={base}>
               {t.text}
             </text>
+          );
+          if (!className) return <g key={i}>{label}</g>;
+          // พื้นที่แตะกว้างกว่าตัวเลข (ใช้นิ้วบนมือถือได้)
+          const hit = vertical
+            ? { x: base - 0.78 * size - 0.2 * h, y: t.center - w / 2, width: h, height: w }
+            : { x: t.center - w / 2, y: base - 0.78 * size - 0.2 * h, width: w, height: h };
+          return (
+            <g key={i} className={`dim-text ${className}`} {...handlers}>
+              <rect {...hit} rx={0.4 * u} className="dim-hit" />
+              {label}
+            </g>
           );
         })}
       </g>

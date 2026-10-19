@@ -4,15 +4,17 @@ import { FootingBarPopover } from '@/components/concrete/footing/FootingPopover'
 import { NumberInput } from '@/components/concrete/form/Fields'
 import { PileCapPlan, PileCapSection } from '@/components/concrete/pilecap/PileCapDrawings'
 import {
-  barSetText,
+  buildPlanModel,
+  buildSectionModel,
   pickDrawingScale,
   planTitle,
+  reinforcementText,
   type PileCapPick,
 } from '@/components/concrete/pilecap/pileCapDrawingModel'
+import { PileCapCagePopover, PileCapDimPopover } from '@/components/concrete/pilecap/PileCapPopovers'
 import { CalcSteps } from '@/components/concrete/results/CalcSteps'
 import { CheckTable } from '@/components/concrete/results/CheckTable'
 import { StatusBadge } from '@/components/concrete/results/StatusBadge'
-import type { BarDir } from '@/engine/concrete/footing/types'
 import { fmt } from '@/engine/concrete/format'
 import { analyzePileCap, basketRecommended, type PileCapAnalysis } from '@/engine/concrete/pilecap/analyzePileCap'
 import { autoPileCapLayout, pileCapDesign } from '@/engine/concrete/pilecap/designPileCap'
@@ -112,6 +114,7 @@ export function ConcretePileCapResultView() {
   const input = usePileCapStore((s) => s.input)
   const layout = usePileCapStore((s) => s.layout)
   const edited = usePileCapStore((s) => s.edited)
+  const setInput = usePileCapStore((s) => s.setInput)
   const editLayout = usePileCapStore((s) => s.editLayout)
   const redesign = usePileCapStore((s) => s.redesign)
   const pop = usePopover<PileCapPick>()
@@ -127,7 +130,14 @@ export function ConcretePileCapResultView() {
     [design, input],
   )
   const denom = useMemo(() => (analysis ? pickDrawingScale(input, analysis) : 50), [analysis, input])
-  const selectedDir: BarDir | null = pop.sel ? pop.sel.pick.dir : null
+  const figureWidths = useMemo(
+    () =>
+      analysis
+        ? { section: buildSectionModel(input, analysis, denom).sizeMm.w, plan: buildPlanModel(input, analysis, denom).sizeMm.w }
+        : null,
+    [analysis, input, denom],
+  )
+  const selected = pop.sel?.pick ?? null
   const eccentric =
     analysis &&
     Math.hypot(
@@ -135,6 +145,49 @@ export function ConcretePileCapResultView() {
       analysis.loads.piles.column.y - analysis.loads.service.yg,
     ) > 0.05
   const title = planTitle(input)
+  const single = analysis?.cage != null
+
+  const popover = () => {
+    if (!pop.sel || !analysis || !suggested) return null
+    const pick = pop.sel.pick
+    if (pick.kind === 'dim') {
+      return (
+        <PileCapDimPopover
+          key={`${pick.key}-${pick.value}`}
+          pick={pick}
+          input={input}
+          dims={analysis.dims}
+          single={single}
+          apply={(patch) => {
+            setInput(patch)
+            pop.close()
+          }}
+        />
+      )
+    }
+    if (pick.kind === 'cage') {
+      if (!analysis.cage || !suggested.cage) return null
+      const fallback = suggested.cage
+      return (
+        <PileCapCagePopover
+          cage={analysis.cage}
+          analysis={analysis.cage}
+          suggested={fallback}
+          apply={(fn) => editLayout((l) => ({ ...l, cage: fn(l.cage ?? fallback) }))}
+        />
+      )
+    }
+    return (
+      <FootingBarPopover
+        dir={pick.dir}
+        layout={layout}
+        analysis={analysis}
+        suggested={suggested[pick.dir]}
+        apply={(fn) => editLayout((l) => ({ ...l, ...fn(l) }))}
+        basketRecommended={basketRecommended(analysis.loads.piles.nominal.length, analysis.dims.t)}
+      />
+    )
+  }
 
   return (
     <div className="rc-scope space-y-3.5">
@@ -170,7 +223,7 @@ export function ConcretePileCapResultView() {
                 Rmax <b>{fmt(analysis.pile.Rmax / 1000, 2)}</b> / Pa {fmt(input.pileCapacity, 2)} ตัน
               </span>
               <span>
-                X <b>{barSetText(analysis, 'x')}</b> · Y <b>{barSetText(analysis, 'y')}</b>
+                <b>{reinforcementText(analysis)}</b>
               </span>
             </div>
           </div>
@@ -193,74 +246,82 @@ export function ConcretePileCapResultView() {
             </div>
           )}
 
-          <div className="footing-grid">
-            <section className="card section-card">
-              <header className="section-head">
-                <h2>
-                  {title}
-                  <small>{analysis.loads.piles.nominal.length} ต้น</small>
-                </h2>
-                <StatusBadge status={analysis.status} />
-                {edited && <span className="tag">แก้ไขเอง</span>}
-              </header>
-              <div className="drawing-wrap" ref={pop.wrapRef}>
+          <section className="card section-card">
+            <header className="section-head">
+              <h2>
+                {title}
+                <small>
+                  รูปตัด และแปลน — เสาเข็ม {analysis.loads.piles.nominal.length} ต้น
+                </small>
+              </h2>
+              <StatusBadge status={analysis.status} />
+              {edited && <span className="tag">แก้ไขเอง</span>}
+            </header>
+            <div className="drawing-wrap pilecap-figures" ref={pop.wrapRef}>
+              {/* กว้างตามสัดส่วนขนาดบนกระดาษ — สองรูปจึงแสดงมาตราส่วนเดียวกัน */}
+              <div className="pilecap-fig" style={{ flexGrow: figureWidths?.section ?? 1 }}>
+                <PileCapSection
+                  input={input}
+                  analysis={analysis}
+                  denom={denom}
+                  interactive
+                  selected={selected}
+                  onPick={(pick, e) => pop.openAt(pick, e.clientX, e.clientY)}
+                  onBackgroundClick={pop.close}
+                />
+              </div>
+              <div className="pilecap-fig" style={{ flexGrow: figureWidths?.plan ?? 1 }}>
                 <PileCapPlan
                   input={input}
                   analysis={analysis}
                   denom={denom}
                   interactive
-                  selectedDir={selectedDir}
+                  selected={selected}
                   onPick={(pick, e) => pop.openAt(pick, e.clientX, e.clientY)}
                   onBackgroundClick={pop.close}
                 />
-                {pop.sel && suggested && (
-                  <div className="popover" style={pop.style} role="dialog" aria-label="แก้ไขเหล็กฐานราก">
-                    <button type="button" className="popover-close" onClick={pop.close} aria-label="ปิด">
-                      ×
-                    </button>
-                    <FootingBarPopover
-                      dir={pop.sel.pick.dir}
-                      layout={layout}
-                      analysis={analysis}
-                      suggested={suggested[pop.sel.pick.dir]}
-                      apply={(fn) => editLayout(fn)}
-                      basketRecommended={basketRecommended(analysis.loads.piles.nominal.length, analysis.dims.t)}
-                    />
-                  </div>
-                )}
               </div>
-              <p className="hint">
-                คลิกที่เหล็กหรือรายการเหล็กใต้รูป เพื่อเปลี่ยนขนาด / จำนวน — กากบาทคือตำแหน่งเข็มตามแบบ เมื่อเข็มเยื้อง
-              </p>
-              <div className="toolbar">
-                <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'bars', dir: 'x' })}>
-                  เหล็กทิศ X…
-                </button>
-                <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'bars', dir: 'y' })}>
-                  เหล็กทิศ Y…
-                </button>
-                {edited && (
-                  <button type="button" className="btn accent" onClick={redesign}>
-                    ↺ ออกแบบอัตโนมัติใหม่
+              {pop.sel && (
+                <div className="popover" style={pop.style} role="dialog" aria-label="แก้ไขฐานรากจากรูป">
+                  <button type="button" className="popover-close" onClick={pop.close} aria-label="ปิด">
+                    ×
                   </button>
-                )}
-              </div>
-            </section>
-
-            <section className="card sections-card">
-              {(['x', 'y'] as const).map((dir) => (
-                <div key={dir} className="drawing-wrap section-wrap">
-                  <PileCapSection
-                    input={input}
-                    analysis={analysis}
-                    denom={denom}
-                    dir={dir}
-                    selectedDir={selectedDir}
-                  />
+                  {popover()}
                 </div>
-              ))}
-            </section>
-          </div>
+              )}
+            </div>
+            <p className="hint">
+              แตะตัวเลขบอกระยะ (ความกว้าง ความหนา ระยะเข็ม ระยะฝังหัวเข็ม คอนกรีตหยาบ ทราย) เพื่อแก้ระยะ — แตะเหล็กหรือป้ายเหล็กเพื่อเปลี่ยนขนาด / จำนวน
+              {analysis.loads.piles.nominal.length > 1 && ' — กากบาทคือตำแหน่งเข็มตามแบบ เมื่อเข็มเยื้อง'}
+            </p>
+            <div className="toolbar">
+              {single ? (
+                <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'cage' })}>
+                  เหล็กยืน / ปลอก…
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'bars', dir: 'x' })}>
+                    เหล็กทิศ X…
+                  </button>
+                  <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'bars', dir: 'y' })}>
+                    เหล็กทิศ Y…
+                  </button>
+                </>
+              )}
+              <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'dim', key: 'B', value: analysis.dims.B })}>
+                ขนาดฐาน Bx…
+              </button>
+              <button type="button" className="btn" onClick={() => pop.openTopRight({ kind: 'dim', key: 'L', value: analysis.dims.L })}>
+                ขนาดฐาน By…
+              </button>
+              {edited && (
+                <button type="button" className="btn accent" onClick={redesign}>
+                  ↺ ออกแบบอัตโนมัติใหม่
+                </button>
+              )}
+            </div>
+          </section>
 
           <PileTable analysis={analysis} />
 

@@ -21,7 +21,10 @@ const RANGES: Range[] = [
   ['spacing', [20, 1000, 'ระยะห่างเสาเข็ม']],
   ['edge', [10, 300, 'ระยะศูนย์เข็มถึงขอบฐาน']],
   ['cover', [5, 20, 'ระยะหุ้ม covering']],
-  ['embed', [0, 20, 'ระยะหัวเข็มฝังในฐานราก']],
+  ['embed', [0, 20, 'ระยะหัวเข็มฝังในฐานราก (เข็มกลุ่ม)']],
+  ['embedSingle', [0, 150, 'ระยะหัวเข็มฝังในฐานราก (เข็มต้นเดียว)']],
+  ['lean', [0, 30, 'ความหนาคอนกรีตหยาบ']],
+  ['sand', [0, 50, 'ความหนาทรายรองพื้น']],
   ['Df', [0, 10, 'ความลึกฐานราก Df']],
   ['gammaSoil', [1, 2.5, 'หน่วยน้ำหนักดิน γs']],
   ['fc', [100, 700, 'f′c']],
@@ -34,7 +37,9 @@ const RANGES: Range[] = [
 export function validatePileCapInput(input: PileCapInput): string[] {
   const errors: string[] = [];
   if (!includes(PILE_SHAPES, input.pileShape)) errors.push('รูปหน้าตัดเสาเข็มไม่ถูกต้อง');
-  if (!includes(AUTO_MODES, input.countMode) || !includes(AUTO_MODES, input.thicknessMode)) errors.push('รูปแบบการออกแบบไม่ถูกต้อง');
+  if (!includes(AUTO_MODES, input.countMode) || !includes(AUTO_MODES, input.thicknessMode) || !includes(AUTO_MODES, input.sizeMode)) {
+    errors.push('รูปแบบการออกแบบไม่ถูกต้อง');
+  }
   if (!isBarName(input.bar)) errors.push('ขนาดเหล็กไม่ถูกต้อง');
   if (!Array.isArray(input.offsets) || input.offsets.length < K.maxPiles) errors.push('ข้อมูลระยะเยื้องเสาเข็มไม่ครบ');
   if (errors.length > 0) return errors;
@@ -42,6 +47,9 @@ export function validatePileCapInput(input: PileCapInput): string[] {
   const ranges: Range[] = [...RANGES];
   if (input.countMode === 'manual') ranges.push(['pileCount', [1, K.maxPiles, 'จำนวนเสาเข็ม']]);
   if (input.thicknessMode === 'manual') ranges.push(['t', [20, K.autoMaxThickness, 'ความหนา t']]);
+  if (input.sizeMode === 'manual') {
+    ranges.push(['B', [K.manualMinSize, K.manualMaxSize, 'ด้านฐานราก Bx']], ['L', [K.manualMinSize, K.manualMaxSize, 'ด้านฐานราก By']]);
+  }
   for (const [key, [min, max, label]] of ranges) {
     const value = input[key];
     if (!Number.isFinite(value)) errors.push(`${label}: กรุณากรอกตัวเลข`);

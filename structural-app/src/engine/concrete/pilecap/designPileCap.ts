@@ -2,7 +2,7 @@ import { ACI318_WSD as C, ACI318_WSD_FOOTING as KF, ACI318_WSD_PILECAP as K } fr
 import { wsdParams } from '../design/flexure';
 import { developmentLengths } from '../footing/analyzeFooting';
 import { footingGeometry, otherDir } from '../footing/geometry';
-import type { BarDir, BarSet, FootingLayout } from '../footing/types';
+import type { BarDir, BarSet } from '../footing/types';
 import { MAIN_BAR_SIZES, REBARS, type BarName } from '../rebar';
 import {
   analyzeColumnPunching,
@@ -15,10 +15,12 @@ import {
   faceMoments,
   oneWayShears,
   pileCapLoads,
+  punchingDepth,
   type PileCapLoads,
 } from './analyzePileCap';
+import { autoCage } from './cage';
 import { canRotate, PILE_COUNTS } from './piles';
-import type { PileArrangement, PileCapInput } from './types';
+import type { PileArrangement, PileCapInput, PileCapLayout } from './types';
 
 /** กลุ่มเข็มรับแรงได้: ไม่มีโมเมนต์ที่รับไม่ได้, Rmax ≤ Pa, Rmin ≥ −Ta */
 export function pilesOk(input: PileCapInput, loads: PileCapLoads): boolean {
@@ -43,13 +45,16 @@ export function pickArrangement(input: PileCapInput, t: number): PileArrangement
 
 /**
  * เลือกขนาด/จำนวนเหล็กทั้งสองทิศ — ชั้นล่างคือทิศที่โมเมนต์ต่อความกว้างมากกว่า
- * เข็มต้นเดียวหรือฐานรากหนามากใช้เหล็กตะกร้อ (ขาล่างและขาบนแบ่งเหล็กกันร้าวกันคนละครึ่ง)
+ * ฐานรากหนามากใช้เหล็กตะกร้อ (ขาล่างและขาบนแบ่งเหล็กกันร้าวกันคนละครึ่ง)
+ * เข็มต้นเดียวใช้เหล็กยืน 8 เส้น + ปลอก ตามแบบมาตรฐาน
  */
-export function autoPileCapLayout(input: PileCapInput, arrangement: PileArrangement, t: number): FootingLayout {
-  return layoutFor(input, pileCapLoads(input, arrangement, t));
+export function autoPileCapLayout(input: PileCapInput, arrangement: PileArrangement, t: number): PileCapLayout {
+  const loads = pileCapLoads(input, arrangement, t);
+  const layout = layoutFor(input, loads);
+  return arrangement.count === 1 ? { ...layout, cage: autoCage(input, loads.dims) } : layout;
 }
 
-function layoutFor(input: PileCapInput, loads: PileCapLoads): FootingLayout {
+function layoutFor(input: PileCapInput, loads: PileCapLoads): PileCapLayout {
   const { dims } = loads;
   const basket = basketRecommended(loads.piles.nominal.length, dims.t);
   const p = wsdParams(input.fc, input.fy, input.fy);
@@ -88,11 +93,19 @@ function layoutFor(input: PileCapInput, loads: PileCapLoads): FootingLayout {
   return bottom === 'x' ? { x: bottomSet, y: topSet, bottom, basket } : { x: topSet, y: bottomSet, bottom, basket };
 }
 
-/** d ขั้นต่ำ, ดัด (คอนกรีต), เฉือนแบบคาน, เฉือนทะลุรอบเสาและรอบเข็ม ผ่านด้วยเหล็กที่ออกแบบอัตโนมัติ */
+/**
+ * d ขั้นต่ำ, ดัด (คอนกรีต), เฉือนแบบคาน, เฉือนทะลุรอบเสาและรอบเข็ม ผ่านด้วยเหล็กที่ออกแบบอัตโนมัติ
+ * เข็มต้นเดียว: ความลึกเหนือหัวเข็ม ≥ 30 ซม. และเฉือนทะลุรอบเสา (ไม่มีโมเมนต์ดัด)
+ */
 function thicknessOk(input: PileCapInput, arrangement: PileArrangement, t: number): boolean {
   const loads = pileCapLoads(input, arrangement, t);
   const layout = layoutFor(input, loads);
   const geom = footingGeometry(input.cover, loads.dims, layout);
+  if (arrangement.count === 1) {
+    if (t - input.embedSingle < K.minDepthAboveSteel - 1e-9) return false;
+    const col = analyzeColumnPunching(input, loads, punchingDepth(input, loads, geom));
+    return !col || col.v <= col.vc * (1 + 1e-6);
+  }
   if (Math.min(geom.d.x, geom.d.y) < K.minDepthAboveSteel - 1e-9) return false;
   const p = wsdParams(input.fc, input.fy, input.fy);
   const vc = KF.oneWayVcCoef * Math.sqrt(input.fc);

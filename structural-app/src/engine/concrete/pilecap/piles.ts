@@ -23,7 +23,7 @@ export const PILE_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 /** รูปแบบที่หมุน 90° แล้วต่างจากเดิม */
 export const canRotate = (count: number) => [2, 3, 6, 8].includes(count);
 
-type PlanInput = Pick<PileCapInput, 'spacing' | 'edge' | 'cx' | 'cy' | 'offsets' | 'ex' | 'ey'>;
+type PlanInput = Pick<PileCapInput, 'spacing' | 'edge' | 'cx' | 'cy' | 'offsets' | 'ex' | 'ey' | 'sizeMode' | 'B' | 'L'>;
 
 export interface PileLayout {
   arrangement: PileArrangement;
@@ -38,7 +38,10 @@ export interface PileLayout {
   column: Pt;
 }
 
-/** ตำแหน่งเข็มตามแบบ + ขนาดแปลนฐานราก (กรอบเข็ม + ระยะขอบ ขยายให้คลุมเสาที่เยื้องศูนย์, ปัดขึ้นทีละ 5 ซม. เท่ากันสองข้าง) */
+/**
+ * ตำแหน่งเข็มตามแบบ + ขนาดแปลนฐานราก (กรอบเข็ม + ระยะขอบ ขยายให้คลุมเสาที่เยื้องศูนย์, ปัดขึ้นทีละ 5 ซม. เท่ากันสองข้าง)
+ * ขนาดกำหนดเอง: ใช้ Bx × By ที่กรอก กลุ่มเข็มอยู่กลางฐานเหมือนเดิม
+ */
 export function pileLayout(input: PlanInput, arrangement: PileArrangement): PileLayout {
   const unit = PATTERNS[arrangement.count] ?? PATTERNS[1];
   const raw = unit.map((p) => (arrangement.rotate ? { x: -p.y * input.spacing, y: p.x * input.spacing } : { x: p.x * input.spacing, y: p.y * input.spacing }));
@@ -54,7 +57,7 @@ export function pileLayout(input: PlanInput, arrangement: PileArrangement): Pile
     Math.ceil(Math.max(Math.max(...v) - Math.min(...v) + 2 * input.edge, 2 * Math.abs(c) + size) / step - 1e-9) * step;
   return {
     arrangement,
-    dims: { B: span(xs, column.x, input.cx), L: span(ys, column.y, input.cy) },
+    dims: input.sizeMode === 'manual' ? { B: input.B, L: input.L } : { B: span(xs, column.x, input.cx), L: span(ys, column.y, input.cy) },
     nominal,
     actual: nominal.map((p, i) => ({ x: p.x + (input.offsets[i]?.dx ?? 0), y: p.y + (input.offsets[i]?.dy ?? 0) })),
     groupCenter,

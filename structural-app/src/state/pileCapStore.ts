@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { ACI318_WSD_PILECAP as K } from '@/engine/concrete/codes/aci318Wsd';
-import type { FootingLayout } from '@/engine/concrete/footing/types';
 import { autoPileCapLayout, pileCapDesign } from '@/engine/concrete/pilecap/designPileCap';
-import type { PileCapInput, PileOffset } from '@/engine/concrete/pilecap/types';
+import type { PileCapInput, PileCapLayout, PileOffset } from '@/engine/concrete/pilecap/types';
 import { AUTO_MODES, PILE_SHAPES, validatePileCapInput } from '@/engine/concrete/pilecap/validate';
 import { isBarName } from '@/engine/concrete/rebar';
 
@@ -24,10 +23,16 @@ export const DEFAULT_PILECAP: PileCapInput = {
   spacing: 75,
   edge: 30,
   offsets: noOffsets(),
+  sizeMode: 'auto',
+  B: 150,
+  L: 150,
   thicknessMode: 'auto',
   t: 60,
   cover: 7.5,
   embed: 5,
+  embedSingle: 30,
+  lean: 5,
+  sand: 5,
   Df: 1.5,
   gammaSoil: 1.8,
   fc: 240,
@@ -38,7 +43,7 @@ export const DEFAULT_PILECAP: PileCapInput = {
   bar: 'DB16',
 };
 
-function design(input: PileCapInput, prev: FootingLayout | null, edited: boolean): FootingLayout {
+function design(input: PileCapInput, prev: PileCapLayout | null, edited: boolean): PileCapLayout {
   const valid = validatePileCapInput(input).length === 0 ? input : null;
   if (!valid) {
     if (prev) return prev;
@@ -54,7 +59,7 @@ export interface PileCapProjectFile {
   app: 'rc-pilecap-wsd';
   version: 1;
   input: PileCapInput;
-  layout: FootingLayout;
+  layout: PileCapLayout;
   edited: boolean;
 }
 
@@ -64,11 +69,15 @@ const isBarSet = (v: unknown) => {
   const o = asObj(v);
   return !!o && isBarName(o.size) && Number.isInteger(o.count) && (o.count as number) >= 2;
 };
-const isLayout = (value: unknown): value is FootingLayout => {
+const isCage = (value: unknown) => {
+  const c = asObj(value);
+  return !!c && isBarName(c.size) && isBarName(c.tie) && typeof c.tieSpacing === 'number' && c.tieSpacing > 0;
+};
+const isLayout = (value: unknown): value is PileCapLayout => {
   const v = asObj(value);
   return (
     !!v && isBarSet(v.x) && isBarSet(v.y) && (v.bottom === 'x' || v.bottom === 'y') &&
-    (v.basket === undefined || typeof v.basket === 'boolean')
+    (v.basket === undefined || typeof v.basket === 'boolean') && (v.cage === undefined || isCage(v.cage))
   );
 };
 
@@ -94,7 +103,12 @@ export function parsePileCapProject(data: unknown): PileCapProjectFile | string 
   }
   if (!isBarName(input.bar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
   const enumOk = (list: readonly string[], v: unknown) => list.includes(v as string);
-  if (!enumOk(PILE_SHAPES, input.pileShape) || !enumOk(AUTO_MODES, input.countMode) || !enumOk(AUTO_MODES, input.thicknessMode)) {
+  if (
+    !enumOk(PILE_SHAPES, input.pileShape) ||
+    !enumOk(AUTO_MODES, input.countMode) ||
+    !enumOk(AUTO_MODES, input.thicknessMode) ||
+    !enumOk(AUTO_MODES, input.sizeMode)
+  ) {
     return 'รูปแบบเสาเข็มหรือการออกแบบในไฟล์ไม่ถูกต้อง';
   }
   if (!isLayout(root.layout)) return 'รูปแบบเหล็กเสริมในไฟล์ไม่ถูกต้อง';
@@ -103,11 +117,11 @@ export function parsePileCapProject(data: unknown): PileCapProjectFile | string 
 
 interface PileCapState {
   input: PileCapInput;
-  layout: FootingLayout;
+  layout: PileCapLayout;
   edited: boolean;
   setInput: (patch: Partial<PileCapInput>) => void;
   setOffset: (index: number, patch: Partial<PileOffset>) => void;
-  editLayout: (fn: (layout: FootingLayout) => FootingLayout) => void;
+  editLayout: (fn: (layout: PileCapLayout) => PileCapLayout) => void;
   redesign: () => void;
   resetProject: () => void;
   loadProject: (data: unknown) => string | null;
