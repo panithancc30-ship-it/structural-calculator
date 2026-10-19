@@ -2,15 +2,19 @@
 import { ACI318_WSD_COLUMN as K } from '../codes/aci318Wsd';
 import type { ColumnInput } from './types';
 
-export interface AxisSlenderness {
+/** ส่วนที่ใช้ร่วมกันทั้ง วสท. และ ACI */
+export interface SlendernessInfo {
   axis: 'x' | 'y';
   r: number;
-  /** Lu/r */
+  /** วสท. Lu/r, ACI kLu/r */
   ratio: number;
-  /** Lu/r ที่ R เริ่มน้อยกว่า 1 */
+  /** วสท. Lu/r ที่ R เริ่มน้อยกว่า 1, ACI 34 − 12·M1/M2 */
   limit: number;
   slender: boolean;
   tooSlender: boolean;
+}
+
+export interface AxisSlenderness extends SlendernessInfo {
   /** 1.32 − 0.006·Lu/r ≤ 1.0 */
   R: number;
 }

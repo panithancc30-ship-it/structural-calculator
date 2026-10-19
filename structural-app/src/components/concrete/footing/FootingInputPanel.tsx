@@ -4,9 +4,9 @@ import { fmt } from '@/engine/concrete/format';
 import { MAIN_BAR_SIZES, STEEL_GRADES } from '@/engine/concrete/rebar';
 import { useColumnStore } from '@/state/columnStore';
 import { useFootingStore } from '@/state/footingStore';
-import { BarSelect, NumberField, Segmented, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 
-type NumericKey = { [P in keyof FootingInput]: FootingInput[P] extends number ? P : never }[keyof FootingInput];
+type NumericKey = { [P in keyof FootingInput]-?: FootingInput[P] extends number ? P : never }[keyof FootingInput];
 
 const meters = (cm: number) => fmt(cm / 100, 2);
 
@@ -34,6 +34,7 @@ export function FootingInputPanel({ dims }: { dims: FootingDims | null }) {
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>เสา / ตอม่อ</legend>
         <div className="grid2">

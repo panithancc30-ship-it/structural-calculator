@@ -2,7 +2,7 @@ import { ACI318_WSD_PILECAP as K } from '../codes/aci318Wsd';
 import { isBarName, REBARS } from '../rebar';
 import type { PileCapInput } from './types';
 
-type NumericKey = { [P in keyof PileCapInput]: PileCapInput[P] extends number ? P : never }[keyof PileCapInput];
+type NumericKey = { [P in keyof PileCapInput]-?: PileCapInput[P] extends number ? P : never }[keyof PileCapInput];
 type Range = [NumericKey, [number, number, string]];
 
 export const PILE_SHAPES = ['square', 'circle'] as const;

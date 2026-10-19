@@ -7,7 +7,7 @@ import {
   sectionDirs,
   SLAB_TYPE_TH,
 } from '@/components/concrete/slab/slabDrawingModel'
-import { ACI318_WSD_SLAB } from '@/engine/concrete/codes/aci318Wsd'
+import { codeLabel, codeOf } from '@/engine/concrete/codes/designCode'
 import { fmt } from '@/engine/concrete/format'
 import { analyzeSlab, type SlabAnalysis } from '@/engine/concrete/slab/analyzeSlab'
 import { slabDims } from '@/engine/concrete/slab/designSlab'
@@ -30,6 +30,10 @@ const BASE_NOTES = [
 const TWO_WAY_NOTE =
   'พื้นสองทางใช้ตารางสัมประสิทธิ์โมเมนต์ วิธีที่ 2 ตามมาตรฐาน วสท. (M = C·w·S², S = ช่วงสั้น) ออกแบบทีละแถบกว้าง 1 ม. ' +
   'ด้วยโมเมนต์ของแถบกลางทั้งแผ่น — ยังไม่ได้ออกแบบเหล็กกันบิดที่มุมแผ่น'
+
+const TWO_WAY_NOTE_ACI =
+  'พื้นสองทางแบ่งน้ำหนักด้วยวิธี Rankine–Grashof (wx = w·ly⁴/(lx⁴+ly⁴)) แล้วออกแบบแต่ละทิศเป็นแถบทางเดียวกว้าง 1 ม. ' +
+  'ด้วยสัมประสิทธิ์โมเมนต์ ACI 8.3.3 — ยังไม่ได้ออกแบบเหล็กกันบิดที่มุมแผ่น'
 
 const ON_GROUND_NOTE =
   'กำหนดความหนาตามการใช้งานและเสริมเหล็กกันร้าวเท่านั้น — ยังไม่ได้ตรวจน้ำหนักกระทำเป็นจุดหรือล้อรถ ' +
@@ -140,7 +144,7 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
   const notes = onGround
     ? [BASE_NOTES[0], ON_GROUND_NOTE]
     : slab.slabType === 'twoWay'
-      ? [...BASE_NOTES, TWO_WAY_NOTE]
+      ? [...BASE_NOTES, codeOf(slab) === 'aci' ? TWO_WAY_NOTE_ACI : TWO_WAY_NOTE]
       : BASE_NOTES
 
   return (
@@ -148,7 +152,7 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
       project={project}
       title={title}
       docTitle="พื้นคอนกรีตเสริมเหล็กหล่อในที่"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD_SLAB.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(slab), 'พื้นหล่อในที่')}`}
       inputRows={inputRows}
       figureTitle="แปลนพื้น และรูปตัด"
       figures={figures}

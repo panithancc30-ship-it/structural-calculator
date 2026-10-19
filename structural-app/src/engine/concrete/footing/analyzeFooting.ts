@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_FOOTING as K } from '../codes/aci318Wsd';
+import { ACI_ADM, codeOf, punchingVc, punchingVcFormula, type DesignCode } from '../codes/designCode';
 import { wsdParams, type WsdParams } from '../design/flexure';
 import { worstStatus } from '../design/sectionCheck';
 import { fmt } from '../format';
@@ -90,8 +91,9 @@ export function oneWayShears(loads: FootingLoads, dir: BarDir, d: number): SideP
   };
 }
 
-export function asMinRatio(fy: number): number {
-  if (fy <= K.plainBarFyMax) return K.rhoTempPlain;
+/** เหล็กกันร้าว ρ — เหล็กกลม 0.0025 เฉพาะมาตรฐาน วสท. (ACI ไม่มีข้อนี้) */
+export function asMinRatio(fy: number, code: DesignCode = 'eit'): number {
+  if (code === 'eit' && fy <= K.plainBarFyMax) return K.rhoTempPlain;
   return fy < K.rhoTempRefFy ? K.rhoTempLowFy : Math.max(K.rhoTempMin, (K.rhoTemp * K.rhoTempRefFy) / fy);
 }
 
@@ -143,7 +145,7 @@ export function directionDemand(
   const width = widthOf(loads.dims, dir);
   const Mdesign = Math.max(0, M.neg, M.pos);
   const AsFlex = d > 0 ? Mdesign / (p.fsAllow * p.j * d) : Infinity;
-  const AsMin = asMinRatio(input.fy) * width * loads.dims.t;
+  const AsMin = asMinRatio(input.fy, codeOf(input)) * width * loads.dims.t;
   const AsReq = Math.max(AsFlex, AsMin);
   const band = bandFor(loads, dir);
   return { M, Mdesign, Mc: p.R * width * d * d, AsFlex, AsMin, AsReq, band, bandAsReq: band ? AsReq * band.ratio : 0 };
@@ -157,19 +159,29 @@ export function allowableBond(size: BarName, fc: number): number {
 }
 
 /**
- * ระยะฝังเหล็กตรง ld = fs·db/(4u) ตาม วสท. และงอขอ ldh ตาม ACI 12.5
- * excess = As ต้องการ/As ที่ใส่ — หน่วยแรงในเหล็กจริงต่ำกว่าค่ายอมให้ตามสัดส่วนนี้
+ * ระยะฝังเหล็กตรง ld และงอขอ ldh ตาม ACI 12.5
+ * - วสท. ld = fs·db/(4u)
+ * - ACI ld = 0.06Ab·fy/√f′c ≥ 0.0057db·fy (12.2.2)
+ * excess = As ต้องการ/As ที่ใส่ — หน่วยแรงในเหล็กจริงต่ำกว่าค่ายอมให้ตามสัดส่วนนี้ (ACI 12.2.5)
  */
-export function developmentLengths(size: BarName, fc: number, fy: number, excess = 1) {
-  const { dia } = REBARS[size];
+export function developmentLengths(size: BarName, fc: number, fy: number, excess = 1, code: DesignCode = 'eit') {
+  const { dia, area } = REBARS[size];
   const sq = Math.sqrt(fc);
   const r = Math.min(1, Math.max(0, excess));
   const fs = Math.min(C.fsRatio * fy, C.fsMax) * r;
+  const F = ACI_ADM.footing;
+  const ld = code === 'aci'
+    ? Math.max((F.ldCoef * area * fy) / sq, F.ldDbCoef * dia * fy) * r
+    : (fs * dia) / (4 * allowableBond(size, fc));
   return {
-    ld: Math.max((fs * dia) / (4 * allowableBond(size, fc)), K.ldMin),
+    ld: Math.max(ld, K.ldMin),
     ldh: Math.max(((K.ldhCoef * dia) / sq) * (fy / K.ldhFyRef) * r, K.ldhDbMin * dia, K.ldhMin),
   };
 }
+
+/** สูตร ld, ldh สำหรับขั้นตอนคำนวณ */
+export const ldFormula = (code: DesignCode) =>
+  `${code === 'aci' ? 'ld = 0.06Ab·fy/√f′c ≥ 0.0057db·fy' : 'ld = fs·db/(4u), u = 3.23√f′c/db ≤ 35'}; ldh = 318db/√f′c·fy/4,200 × As ต้องการ/As ใส่`;
 
 /**
  * ระยะจากผิวเสาด้านที่โมเมนต์สูงสุดถึงปลายเหล็ก (15.6) — null เมื่อไม่มีโมเมนต์
@@ -287,7 +299,7 @@ function analyzeDirection(
   const AsProv = count * REBARS[bars.size].area;
   let anchorage: Anchorage | null = null;
   if (available !== null) {
-    const { ld, ldh } = developmentLengths(bars.size, input.fc, input.fy, demand.AsFlex / AsProv);
+    const { ld, ldh } = developmentLengths(bars.size, input.fc, input.fy, demand.AsFlex / AsProv, codeOf(input));
     const hook = available < ld;
     anchorage = { available, ld, ldh, hook, ok: available >= (hook ? ldh : ld) - 1e-9 };
   }
@@ -328,7 +340,8 @@ export function analyzePunching(input: FootingInput, loads: FootingLoads, d: num
   const vM =
     (per.Jx > 0 ? (per.gammaX * Math.abs(Mux) * per.cX) / per.Jx : 0) +
     (per.Jy > 0 ? (per.gammaY * Math.abs(Muy) * per.cY) / per.Jy : 0);
-  const vc = K.punchingVcCoef * Math.sqrt(input.fc);
+  const betaC = Math.max(input.cx, input.cy) / Math.min(input.cx, input.cy);
+  const vc = punchingVc(codeOf(input), input.fc, betaC, per.nSides, d, per.b0);
   return { ...per, V, Mux, Muy, vV, vM, v: vV + vM, vc };
 }
 
@@ -350,6 +363,7 @@ const tpm2 = (ksc: number) => fmt(ksc * 10, 2);
 const meter = (cm: number) => fmt(cm / 100, 2);
 
 export function analyzeFooting(input: FootingInput, dims: FootingDims, layout: FootingLayout): FootingAnalysis {
+  const code = codeOf(input);
   const loads = footingLoads(input, dims);
   const geom = footingGeometry(input.cover, dims, layout);
   const params = wsdParams(input.fc, input.fy, input.fy);
@@ -432,7 +446,7 @@ export function analyzeFooting(input: FootingInput, dims: FootingDims, layout: F
       { label: `M ${T}`, formula: `∫(q − w)·แขน ที่ผิวเสา, b = ${meter(r.width)} ม.`, value: `${tm(r.Mdesign)} t·m`, print: true },
       {
         label: `As ${T}`,
-        formula: `max(M/(fs·j·d), ${fmt(asMinRatio(input.fy), 4)}·b·t)`,
+        formula: `max(M/(fs·j·d), ${fmt(asMinRatio(input.fy, code), 4)}·b·t)`,
         value: `${fmt(r.AsReq)} → ${r.count}-${r.size} = ${fmt(r.AsProv)} ซม.²`,
         print: true,
       },
@@ -452,7 +466,7 @@ export function analyzeFooting(input: FootingInput, dims: FootingDims, layout: F
       { label: 'M ถ่ายเท', formula: 'รอบศูนย์หน้าตัดวิกฤต (x, y)', value: `${tm(punching.Mux)}, ${tm(punching.Muy)} t·m` },
       {
         label: 'vc ทะลุ',
-        formula: '0.53√f′c',
+        formula: punchingVcFormula(code, punching.nSides),
         value: `${fmt(punching.vc)} ksc`,
         print: true,
       },
@@ -462,7 +476,7 @@ export function analyzeFooting(input: FootingInput, dims: FootingDims, layout: F
   if (anch.length > 0) {
     steps.push({
       label: 'ld, ldh',
-      formula: 'ld = fs·db/(4u), u = 3.23√f′c/db ≤ 35; ldh = 318db/√f′c·fy/4,200 × As ต้องการ/As ใส่',
+      formula: ldFormula(code),
       value: anch.map((r) => `${r.size}: ${fmt(r.anchorage!.ld, 0)}, ${fmt(r.anchorage!.ldh, 0)}`).join(' / ') + ' ซม.',
       print: true,
     });

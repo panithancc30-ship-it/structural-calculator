@@ -6,9 +6,9 @@ import { degrees, stairProfile } from '@/engine/concrete/stair/geometry';
 import type { StairAscend, StairDims, StairEnd, StairInput, StairUsage } from '@/engine/concrete/stair/types';
 import { stairWarnings } from '@/engine/concrete/stair/validate';
 import { useStairStore } from '@/state/stairStore';
-import { BarSelect, NumberField, Segmented, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 
-type NumericKey = { [P in keyof StairInput]: StairInput[P] extends number ? P : never }[keyof StairInput];
+type NumericKey = { [P in keyof StairInput]-?: StairInput[P] extends number ? P : never }[keyof StairInput];
 
 const END_OPTIONS: { value: StairEnd; label: string }[] = [
   { value: 'simple', label: 'ยึดหมุน' },
@@ -43,6 +43,7 @@ export function StairInputPanel({ dims }: { dims: StairDims | null }) {
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>ขั้นบันได</legend>
         <div className="grid2">

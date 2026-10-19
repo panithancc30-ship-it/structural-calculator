@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import type { BarDir } from '@/engine/concrete/footing/types';
 import { isBarName } from '@/engine/concrete/rebar';
 import { autoSlabLayout, slabDims } from '@/engine/concrete/slab/designSlab';
@@ -18,6 +19,7 @@ export const DEFAULT_SLAB: SlabInput = {
   thicknessMode: 'auto',
   t: 12,
   cover: 2,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   finishDL: 150,
@@ -76,6 +78,7 @@ export function parseSlabProject(data: unknown): SlabProjectFile | string {
     }
   }
   if (!isBarName(input.bar) || !isBarName(input.tempBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
 
   const enumOk = (list: readonly string[], v: unknown) => list.includes(v as string);
   if (

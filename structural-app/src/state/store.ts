@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import { autoLayout } from '@/engine/concrete/design/designBeam';
 import { faceArea } from '@/engine/concrete/layoutOps';
 import { isBarName } from '@/engine/concrete/rebar';
@@ -13,6 +14,7 @@ export const DEFAULT_INPUT: BeamInput = {
   h: 50,
   L: 5,
   cover: 3,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   fyv: 2400,
@@ -87,6 +89,7 @@ export function parseProject(data: unknown): ProjectFile | string {
     }
   }
   if (!isBarName(input.mainBar) || !isBarName(input.stirrupBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
   const layouts = asObj(root.layouts);
   if (!layouts || !isLayout(layouts.A) || !isLayout(layouts.B)) return 'รูปแบบเหล็กเสริมในไฟล์ไม่ถูกต้อง';
   const edited = asObj(root.edited);

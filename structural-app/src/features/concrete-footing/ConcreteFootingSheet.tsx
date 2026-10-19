@@ -6,7 +6,7 @@ import {
   planTitle,
   sectionTitle,
 } from '@/components/concrete/footing/footingDrawingModel'
-import { ACI318_WSD_FOOTING } from '@/engine/concrete/codes/aci318Wsd'
+import { codeLabel, codeOf } from '@/engine/concrete/codes/designCode'
 import { analyzeFooting, type FootingAnalysis } from '@/engine/concrete/footing/analyzeFooting'
 import { footingDims } from '@/engine/concrete/footing/designFooting'
 import type { FootingInput } from '@/engine/concrete/footing/types'
@@ -129,7 +129,7 @@ export function ConcreteFootingSheet({ project, title, input, remarks, pageNumbe
       project={project}
       title={title}
       docTitle="ฐานรากแผ่คอนกรีตเสริมเหล็ก"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD_FOOTING.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(footing), 'ฐานรากแผ่')}`}
       inputRows={inputRows}
       figureTitle="แปลนฐานราก และรูปตัด"
       figures={figures}

@@ -1,3 +1,4 @@
+import type { DesignCode } from '../codes/designCode';
 import type { BarName } from '../rebar';
 import type { Bar } from '../types';
 
@@ -19,6 +20,9 @@ export interface ColumnInput {
 
   /** ความสูงเสาที่ไม่มีการค้ำยัน (ม.) — k, M1/M2, βd กำหนดอัตโนมัติใน ACI318_WSD_COLUMN */
   Lu: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

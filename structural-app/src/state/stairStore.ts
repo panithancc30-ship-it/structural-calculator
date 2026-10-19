@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import { isBarName } from '@/engine/concrete/rebar';
 import type { BarRun } from '@/engine/concrete/slab/types';
 import { autoStairLayout, stairDims } from '@/engine/concrete/stair/designStair';
@@ -28,6 +29,7 @@ export const DEFAULT_STAIR: StairInput = {
   thicknessMode: 'auto',
   t: 15,
   cover: 2,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   finishDL: 150,
@@ -77,6 +79,7 @@ export function parseStairProject(data: unknown): StairProjectFile | string {
     }
   }
   if (!isBarName(input.bar) || !isBarName(input.tempBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
 
   const enumOk = (list: readonly string[], v: unknown) => list.includes(v as string);
   if (

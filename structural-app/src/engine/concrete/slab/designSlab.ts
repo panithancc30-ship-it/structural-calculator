@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_SLAB as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { wsdParams } from '../design/flexure';
 import { asMinRatio } from '../footing/analyzeFooting';
 import type { BarDir } from '../footing/types';
@@ -118,7 +119,7 @@ export function candidatesFrom(pick: BarName): BarName[] {
 export function autoSlabLayout(input: SlabInput, dims: SlabDims): SlabLayout {
   const p = wsdParams(input.fc, input.fy, input.fy);
   const demands = demandAt(input, dims.t);
-  const rho = asMinRatio(input.fy);
+  const rho = asMinRatio(input.fy, codeOf(input));
   const flexural = input.slabType !== 'onGround';
   const AsTemp = rho * STRIP * dims.t;
 

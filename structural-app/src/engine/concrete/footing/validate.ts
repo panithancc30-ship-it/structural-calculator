@@ -4,7 +4,7 @@ import { REBARS, isBarName } from '../rebar';
 import { columnLocation } from './geometry';
 import type { FootingInput } from './types';
 
-type NumericKey = { [P in keyof FootingInput]: FootingInput[P] extends number ? P : never }[keyof FootingInput];
+type NumericKey = { [P in keyof FootingInput]-?: FootingInput[P] extends number ? P : never }[keyof FootingInput];
 type Range = [NumericKey, [number, number, string]];
 
 export const POSITIONS = ['center', 'offset', 'edge', 'corner'] as const;

@@ -1,4 +1,5 @@
 import { ACI318_WSD_LEDGE as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { analyzeBeam, autoLayout, type BeamAnalysis } from '../design/designBeam';
 import { worstStatus } from '../design/sectionCheck';
 import { fmt } from '../format';
@@ -29,7 +30,9 @@ export function ledgeSectionInputs(input: LedgeBeamInput, loads: LedgeLoads): Re
     stirrupMode: input.stirrupMode,
     sMin: input.sMin,
     support: input.support,
-    torsionMethod: 'eit',
+    code: input.code,
+    // ACI ใช้แรงบิดตาม ACI 318-83 เหมือนคาน คสล. ทั่วไป
+    torsionMethod: codeOf(input) === 'aci' ? 'aci' : 'eit',
   };
   return { A: { ...base, M: loads.Mpos }, B: { ...base, M: loads.Mneg } };
 }

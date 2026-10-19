@@ -4,7 +4,7 @@ import { SIZE_MODES } from '../slab/validate';
 import { stairProfile } from './geometry';
 import type { StairInput } from './types';
 
-type NumericKey = { [P in keyof StairInput]: StairInput[P] extends number ? P : never }[keyof StairInput];
+type NumericKey = { [P in keyof StairInput]-?: StairInput[P] extends number ? P : never }[keyof StairInput];
 type Range = [NumericKey, [number, number, string]];
 
 export const STAIR_ENDS = ['simple', 'continuous'] as const;

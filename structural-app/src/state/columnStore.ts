@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import { autoColumnLayout } from '@/engine/concrete/column/designColumn';
 import type { ColumnInput, ColumnLayout } from '@/engine/concrete/column/types';
 import { validateColumnInput } from '@/engine/concrete/column/validate';
@@ -12,6 +13,7 @@ export const DEFAULT_COLUMN: ColumnInput = {
   D: 40,
   cover: 3.5,
   Lu: 3,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   fyv: 2400,
@@ -68,6 +70,7 @@ export function parseColumnProject(data: unknown): ColumnProjectFile | string {
     }
   }
   if (!isBarName(input.mainBar) || !isBarName(input.tieBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
   if (input.shape !== 'rect' && input.shape !== 'circle') return 'รูปทรงเสาไม่ถูกต้อง';
   if (!isColumnLayout(root.layout)) return 'รูปแบบเหล็กเสริมในไฟล์ไม่ถูกต้อง';
   return { app: 'rc-column-wsd', version: 1, input: input as unknown as ColumnInput, layout: root.layout, edited: root.edited === true };

@@ -1,39 +1,46 @@
 import { ACI318_WSD_COLUMN as K } from '../codes/aci318Wsd';
+import { codeOf, type DesignCode } from '../codes/designCode';
 import { worstStatus } from '../design/sectionCheck';
 import { fmt } from '../format';
 import { REBARS } from '../rebar';
 import type { CalcStep, CheckItem, CheckStatus } from '../types';
+import { aciColumnStrength, type SlenderRow } from './aciColumn';
 import { columnGeometry, type ColumnGeometry, type FaceSpacing } from './geometry';
-import { interactionCurve, momentCapacityAt, rayUtilization, type InteractionCurve } from './interaction';
-import { axisSlenderness, type AxisSlenderness } from './slenderness';
+import { interactionCurve, momentCapacityAt, rayUtilization, type InteractionCurve, type PMCurve } from './interaction';
+import { axisSlenderness, type SlendernessInfo } from './slenderness';
 import { spiralRequirement, spiralRho, tieRequirement, type SpiralRequirement, type TieRequirement } from './transverse';
 import type { ColumnInput, ColumnLayout } from './types';
 
-export type StrengthMethod = 'axial' | 'uniaxial-x' | 'uniaxial-y' | 'resultant' | 'contour';
+export type StrengthMethod = 'axial' | 'uniaxial-x' | 'uniaxial-y' | 'resultant' | 'bresler' | 'contour';
 
 export const METHOD_TH: Record<StrengthMethod, string> = {
   axial: 'แรงอัดล้วน',
   'uniaxial-x': 'ดัดรอบแกน x',
   'uniaxial-y': 'ดัดรอบแกน y',
   resultant: 'โมเมนต์ลัพธ์',
+  bresler: 'Bresler',
   contour: 'Mx/Mcx + My/Mcy',
 };
 
 export interface ColumnAnalysis {
+  code: DesignCode;
   geom: ColumnGeometry;
   spiral: boolean;
   rho: number;
-  slender: { x: AxisSlenderness; y: AxisSlenderness };
-  /** ตัวคูณลดกำลังเสายาว (ค่าน้อยสุดสองแกน) — รวมอยู่ใน curveX, curveY แล้ว */
+  /** วสท. Lu/r, ACI kLu/r */
+  slender: { x: SlendernessInfo; y: SlendernessInfo };
+  /** วสท.: ตัวคูณลดกำลังเสายาว (ค่าน้อยสุดสองแกน) — รวมอยู่ใน curveX, curveY แล้ว; ACI = 1 */
   R: number;
-  /** โมเมนต์แรงใช้งาน (kg·cm) */
+  /** ACI: ตัวขยายโมเมนต์มากสุดของสองแกน (1 = เสาสั้น); วสท. = 1 */
+  delta: number;
+  /** วสท. โมเมนต์แรงใช้งาน, ACI โมเมนต์ออกแบบหลังขยายผลความชะลูด (kg·cm) */
   Mx: number;
   My: number;
-  curveX: InteractionCurve;
-  curveY: InteractionCurve;
+  curveX: PMCurve;
+  curveY: PMCurve;
   method: StrengthMethod;
   utilization: number;
-  detail: { Mcx?: number; Mcy?: number };
+  detail: { Px?: number; Py?: number; P0?: number; Pi?: number; Mcx?: number; Mcy?: number };
   tie: TieRequirement | null;
   spiralReq: SpiralRequirement | null;
   checks: CheckItem[];
@@ -47,10 +54,8 @@ const FACE_TH: Record<FaceSpacing['face'], string> = {
   corner: 'มุม', top: 'ด้านบน', bottom: 'ด้านล่าง', left: 'ด้านซ้าย', right: 'ด้านขวา', ring: 'รอบวง',
 };
 
-export function analyzeColumn(input: ColumnInput, layout: ColumnLayout): ColumnAnalysis {
-  const geom = columnGeometry(input, layout);
-  const spiral = layout.kind === 'circle';
-  const rho = geom.Ast / geom.Ag;
+/** กำลัง ความชะลูด และขั้นตอนคำนวณของเสาตามมาตรฐาน วสท. */
+function eitColumnStrength(input: ColumnInput, geom: ColumnGeometry, spiral: boolean) {
   const P = Math.max(0, input.P);
   const sx = axisSlenderness(input, 'x', geom.depth.y);
   const sy = axisSlenderness(input, 'y', geom.depth.x);
@@ -106,52 +111,17 @@ export function analyzeColumn(input: ColumnInput, layout: ColumnLayout): ColumnA
       utilization = Math.max(P / curveX.Pmax, Mx / detail.Mcx + My / detail.Mcy);
     }
   }
-  const tie = spiral ? null : tieRequirement(input, geom, layout.tie.size);
-  const spiralReq = spiral ? spiralRequirement(input, layout.tie.size) : null;
 
-  // ---------- ตรวจสอบ ----------
-  const checks: CheckItem[] = [];
-  const push = (group: CheckItem['group'], label: string, required: string, provided: string, status: CheckStatus) =>
-    checks.push({ id: `C-${checks.length}`, group, label, required, provided, status });
-  const okIf = (cond: boolean, otherwise: CheckStatus = 'fail'): CheckStatus => (cond ? 'ok' : otherwise);
+  const slenderRows: SlenderRow[] = [sx, sy].map((s) => ({
+    label: `Lu/r แกน ${s.axis} (${s.slender ? 'เสายาว' : 'เสาสั้น'} ≤ ${fmt(s.limit, 1)})`,
+    required: `≤ ${K.slenderMax}`,
+    provided: fmt(s.ratio, 1),
+    ok: !s.tooSlender,
+  }));
+  if (R < 1) slenderRows.push({ label: 'ตัวคูณลดกำลังเสายาว R', required: '1.32 − 0.006·Lu/r', provided: fmt(R, 3), ok: true });
 
-  push('strength', 'แรงอัด P (ตัน)', `≤ ${ton(curveX.Pmax)}`, ton(P), okIf(P <= curveX.Pmax * 1.0001));
-  push('strength', `อัตราส่วนใช้งาน (${METHOD_TH[method]})`, '≤ 1.00',
-    Number.isFinite(utilization) ? fmt(utilization, 2) : '—', okIf(utilization <= 1.0001));
-
-  for (const s of [sx, sy]) {
-    push('slenderness', `Lu/r แกน ${s.axis} (${s.slender ? 'เสายาว' : 'เสาสั้น'} ≤ ${fmt(s.limit, 1)})`,
-      `≤ ${K.slenderMax}`, fmt(s.ratio, 1), okIf(!s.tooSlender));
-  }
-  if (R < 1) push('slenderness', 'ตัวคูณลดกำลังเสายาว R', '1.32 − 0.006·Lu/r', fmt(R, 3), 'ok');
-
-  const minBars = spiral ? K.minBarsSpiral : K.minBarsRect;
-  push('detail', 'อัตราส่วนเหล็ก ρg (%)', `${fmt(K.rhoMin * 100)} – ${fmt(K.rhoMax * 100)}`, fmt(rho * 100),
-    okIf(rho + 1e-9 >= K.rhoMin && rho <= K.rhoMax + 1e-9));
-  push('detail', 'จำนวนเหล็กยืน (เส้น)', `≥ ${minBars}`, `${geom.bars.length}`, okIf(geom.bars.length >= minBars));
-  for (const sp of geom.spacing) {
-    push('detail', `ช่องว่างเหล็ก${FACE_TH[sp.face]} (ซม.)`, `≥ ${fmt(sp.required, 1)}`, fmt(sp.minClear, 1), okIf(sp.ok));
-  }
-
-  const dt = REBARS[layout.tie.size].dia;
-  if (tie) {
-    push('transverse', 'ขนาดเหล็กปลอก (มม.)', `≥ ${fmt(tie.minDia * 10, 0)}`, fmt(dt * 10, 0), okIf(dt + 1e-9 >= tie.minDia));
-    push('transverse', 'ระยะเหล็กปลอก (ซม.)', `≤ ${fmt(tie.sMax, 1)}`, fmt(layout.tie.spacing, 1), okIf(layout.tie.spacing <= tie.sMax + 1e-9));
-  }
-  if (spiralReq) {
-    const rhoS = spiralRho(input, layout.tie.size, layout.tie.spacing);
-    const clear = layout.tie.spacing - dt;
-    push('transverse', 'ขนาดเหล็กเกลียว (มม.)', `≥ ${fmt(spiralReq.minDia * 10, 0)}`, fmt(dt * 10, 0), okIf(dt + 1e-9 >= spiralReq.minDia));
-    push('transverse', 'อัตราส่วนเหล็กเกลียว ρs', `≥ ${fmt(spiralReq.rhoMin, 4)}`, fmt(rhoS, 4), okIf(rhoS + 1e-9 >= spiralReq.rhoMin));
-    push('transverse', 'ช่องว่างระหว่างเกลียว (ซม.)', `${fmt(K.spiralClearMin, 1)} – ${fmt(K.spiralClearMax, 1)}`, fmt(clear, 1),
-      okIf(clear + 1e-9 >= K.spiralClearMin && clear <= K.spiralClearMax + 1e-9));
-  }
-
-  // ---------- ขั้นตอนคำนวณ ----------
   const c = curveX;
   const steps: CalcStep[] = [
-    { label: 'Ag, Ast', formula: 'พื้นที่หน้าตัด, พื้นที่เหล็กยืน', value: `${fmt(geom.Ag, 0)}, ${fmt(geom.Ast)} ซม.²` },
-    { label: 'ρg', formula: 'Ast / Ag', value: `${fmt(rho * 100)} %`, print: true },
     {
       label: 'Pa',
       formula: `${spiral ? '' : '0.85'}Ag(0.25f′c + fs·ρg), fs = 0.4fy ≤ ${fmt(K.axialSteelMax, 0)} = ${fmt(c.fsa, 0)} ksc`,
@@ -191,13 +161,71 @@ export function analyzeColumn(input: ColumnInput, layout: ColumnLayout): ColumnA
     steps.push({ label: 'Mcx, Mcy', formula: 'กำลังโมเมนต์ยอมให้ที่ P', value: `${tm(detail.Mcx!)}, ${tm(detail.Mcy!)} t·m`, print: true });
   }
   steps.push({ label: 'อัตราส่วนใช้งาน', formula: METHOD_TH[method], value: Number.isFinite(utilization) ? fmt(utilization, 2) : '—', print: true });
+
+  return { slender: { x: sx, y: sy }, R, Mx, My, curveX, curveY, method, utilization, detail, slenderRows, steps };
+}
+
+export function analyzeColumn(input: ColumnInput, layout: ColumnLayout): ColumnAnalysis {
+  const code = codeOf(input);
+  const geom = columnGeometry(input, layout);
+  const spiral = layout.kind === 'circle';
+  const rho = geom.Ast / geom.Ag;
+  const P = Math.max(0, input.P);
+  const st = code === 'aci'
+    ? { ...aciColumnStrength(input, geom, spiral, (m) => METHOD_TH[m]), R: 1 }
+    : { ...eitColumnStrength(input, geom, spiral), delta: 1 };
+  const { curveX, utilization, method } = st;
+
+  const tie = spiral ? null : tieRequirement(input, geom, layout.tie.size);
+  const spiralReq = spiral ? spiralRequirement(input, layout.tie.size) : null;
+
+  // ---------- ตรวจสอบ ----------
+  const checks: CheckItem[] = [];
+  const push = (group: CheckItem['group'], label: string, required: string, provided: string, status: CheckStatus) =>
+    checks.push({ id: `C-${checks.length}`, group, label, required, provided, status });
+  const okIf = (cond: boolean, otherwise: CheckStatus = 'fail'): CheckStatus => (cond ? 'ok' : otherwise);
+
+  push('strength', 'แรงอัด P (ตัน)', `≤ ${ton(curveX.Pmax)}`, ton(P), okIf(P <= curveX.Pmax * 1.0001));
+  push('strength', `อัตราส่วนใช้งาน (${METHOD_TH[method]})`, '≤ 1.00',
+    Number.isFinite(utilization) ? fmt(utilization, 2) : '—', okIf(utilization <= 1.0001));
+
+  for (const row of st.slenderRows) push('slenderness', row.label, row.required, row.provided, okIf(row.ok));
+
+  const minBars = spiral ? K.minBarsSpiral : K.minBarsRect;
+  push('detail', 'อัตราส่วนเหล็ก ρg (%)', `${fmt(K.rhoMin * 100)} – ${fmt(K.rhoMax * 100)}`, fmt(rho * 100),
+    okIf(rho + 1e-9 >= K.rhoMin && rho <= K.rhoMax + 1e-9));
+  push('detail', 'จำนวนเหล็กยืน (เส้น)', `≥ ${minBars}`, `${geom.bars.length}`, okIf(geom.bars.length >= minBars));
+  for (const sp of geom.spacing) {
+    push('detail', `ช่องว่างเหล็ก${FACE_TH[sp.face]} (ซม.)`, `≥ ${fmt(sp.required, 1)}`, fmt(sp.minClear, 1), okIf(sp.ok));
+  }
+
+  const dt = REBARS[layout.tie.size].dia;
+  if (tie) {
+    push('transverse', 'ขนาดเหล็กปลอก (มม.)', `≥ ${fmt(tie.minDia * 10, 0)}`, fmt(dt * 10, 0), okIf(dt + 1e-9 >= tie.minDia));
+    push('transverse', 'ระยะเหล็กปลอก (ซม.)', `≤ ${fmt(tie.sMax, 1)}`, fmt(layout.tie.spacing, 1), okIf(layout.tie.spacing <= tie.sMax + 1e-9));
+  }
+  if (spiralReq) {
+    const rhoS = spiralRho(input, layout.tie.size, layout.tie.spacing);
+    const clear = layout.tie.spacing - dt;
+    push('transverse', 'ขนาดเหล็กเกลียว (มม.)', `≥ ${fmt(spiralReq.minDia * 10, 0)}`, fmt(dt * 10, 0), okIf(dt + 1e-9 >= spiralReq.minDia));
+    push('transverse', 'อัตราส่วนเหล็กเกลียว ρs', `≥ ${fmt(spiralReq.rhoMin, 4)}`, fmt(rhoS, 4), okIf(rhoS + 1e-9 >= spiralReq.rhoMin));
+    push('transverse', 'ช่องว่างระหว่างเกลียว (ซม.)', `${fmt(K.spiralClearMin, 1)} – ${fmt(K.spiralClearMax, 1)}`, fmt(clear, 1),
+      okIf(clear + 1e-9 >= K.spiralClearMin && clear <= K.spiralClearMax + 1e-9));
+  }
+
+  // ---------- ขั้นตอนคำนวณ ----------
+  const steps: CalcStep[] = [
+    { label: 'Ag, Ast', formula: 'พื้นที่หน้าตัด, พื้นที่เหล็กยืน', value: `${fmt(geom.Ag, 0)}, ${fmt(geom.Ast)} ซม.²` },
+    { label: 'ρg', formula: 'Ast / Ag', value: `${fmt(rho * 100)} %`, print: true },
+    ...st.steps,
+  ];
   if (tie) steps.push({ label: 's ปลอก max', formula: 'min(16db, 48dt, ด้านแคบ)', value: `${fmt(tie.sMax, 1)} ซม.`, print: true });
   if (spiralReq) {
     steps.push({ label: 'ρs,min', formula: "0.45(Ag/Ac − 1)f′c/fy", value: fmt(spiralReq.rhoMin, 4), print: true });
   }
 
   return {
-    geom, spiral, rho, slender: { x: sx, y: sy }, R, Mx, My, curveX, curveY,
-    method, utilization, detail, tie, spiralReq, checks, steps, status: worstStatus(checks),
+    code, geom, spiral, rho, slender: st.slender, R: st.R, delta: st.delta, Mx: st.Mx, My: st.My, curveX, curveY: st.curveY,
+    method, utilization, detail: st.detail, tie, spiralReq, checks, steps, status: worstStatus(checks),
   };
 }

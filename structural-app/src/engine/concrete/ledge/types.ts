@@ -1,3 +1,4 @@
+import type { DesignCode } from '../codes/designCode';
 import type { BarName } from '../rebar';
 import type { StirrupMode } from '../types';
 
@@ -37,6 +38,9 @@ export interface LedgeBeamInput {
   L: number;
   support: LedgeSupport;
   cover: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

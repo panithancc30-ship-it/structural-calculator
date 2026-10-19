@@ -1,7 +1,7 @@
 import { MAIN_BAR_SIZES, STEEL_GRADES, STIRRUP_BAR_SIZES } from '@/engine/concrete/rebar';
 import type { BeamInput, StirrupMode, SupportCondition } from '@/engine/concrete/types';
 import { useStore } from '@/state/store';
-import { BarSelect, NumberField, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, SteelField } from '../form/Fields';
 import { SUPPORT_TH } from '../labels';
 
 const STIRRUP_MODES: { value: StirrupMode; label: string }[] = [
@@ -22,6 +22,7 @@ export function InputPanel() {
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>ขนาดคาน</legend>
         <div className="grid2">

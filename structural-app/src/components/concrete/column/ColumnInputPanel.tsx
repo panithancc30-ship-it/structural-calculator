@@ -1,10 +1,11 @@
 import { ACI318_WSD_COLUMN as K } from '@/engine/concrete/codes/aci318Wsd';
+import { codeOf } from '@/engine/concrete/codes/designCode';
 import type { ColumnInput, ColumnShape } from '@/engine/concrete/column/types';
 import { MAIN_BAR_SIZES, STEEL_GRADES, STIRRUP_BAR_SIZES } from '@/engine/concrete/rebar';
 import { useColumnStore } from '@/state/columnStore';
-import { BarSelect, NumberField, Segmented, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 
-type NumericKey = { [K in keyof ColumnInput]: ColumnInput[K] extends number ? K : never }[keyof ColumnInput];
+type NumericKey = { [K in keyof ColumnInput]-?: ColumnInput[K] extends number ? K : never }[keyof ColumnInput];
 
 export function ColumnInputPanel() {
   const input = useColumnStore((s) => s.input);
@@ -16,6 +17,7 @@ export function ColumnInputPanel() {
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>หน้าตัดเสา</legend>
         <div className="grid2">
@@ -46,7 +48,11 @@ export function ColumnInputPanel() {
           label="ความสูงเสา Lu (ช่วงที่ไม่มีคาน/พื้นยึด)"
           unit="ม."
           step={0.1}
-          hint={`เสายาวลดกำลังด้วย R = ${K.longColumnRA} − ${K.longColumnRB}·Lu/r (มาตรฐาน วสท. เสาที่มีคานและพื้นยึด)`}
+          hint={
+            codeOf(input) === 'aci'
+              ? 'เสายาวขยายโมเมนต์ด้วย δ (ACI 10.11: 2.5P, k = 1, M1/M2 = 1, βd = 0.6)'
+              : `เสายาวลดกำลังด้วย R = ${K.longColumnRA} − ${K.longColumnRB}·Lu/r (มาตรฐาน วสท. เสาที่มีคานและพื้นยึด)`
+          }
           {...num('Lu')}
         />
       </fieldset>
