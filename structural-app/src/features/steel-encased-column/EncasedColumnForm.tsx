@@ -36,7 +36,7 @@ export function EncasedColumnForm({ value, onChange }: Props) {
   const fitsAlready = value.width === minSize.width && value.depth === minSize.depth
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <FieldGroup title="แรงกระทำ (ผู้ใช้คำนวณมาแล้ว)">
         <NumberField
           label="แรงอัดตามแนวแกน, P"

@@ -116,7 +116,7 @@ export function SectionPicker({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <FieldGroup title="หน้าตัดเหล็ก">
         <SelectField
           label="แหล่งที่มาของหน้าตัด"

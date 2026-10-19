@@ -39,7 +39,7 @@ export function SteelBeamForm({ value, onChange }: Props) {
   const tilted = Math.abs(value.sectionAngle) > 0.01
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <FieldGroup title="รูปแบบชิ้นส่วน (กดเพื่อตั้งมุมให้อัตโนมัติ)">
         <div className="flex flex-wrap gap-2 sm:col-span-2">
           {BEAM_PRESETS.map((preset) => {
