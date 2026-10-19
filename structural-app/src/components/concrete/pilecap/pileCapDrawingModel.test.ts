@@ -44,11 +44,25 @@ describe('รูปตัดและแปลนตามแบบมาตร�
     const keys = [...picksOf(s), ...s.layerLabels.map((l) => l.pick)].map((p) => `${p.key}:${p.value}`);
     expect(keys).toEqual(expect.arrayContaining(['t:80', 'embed:30', 'lean:5', 'sand:5', 'edgeX:30', 'B:60']));
     const plan = buildPlanModel(single, a, 25);
-    expect(picksOf(plan).map((p) => `${p.key}:${p.value}`)).toEqual(['edgeY:30', 'edgeY:30']);
+    // ระยะทั้งสองแกน: ล่าง (x) และซ้าย (y) — ขอบถึงศูนย์เข็ม
+    expect(picksOf(plan).map((p) => `${p.key}:${p.value}`)).toEqual(['edgeX:30', 'edgeX:30', 'edgeY:30', 'edgeY:30']);
     expect(plan.bars).toHaveLength(8);
     expect(plan.diamond).not.toBeNull();
     expect(plan.title.text).toBe('F1');
     expect(plan.title.scaleText).toBe('มาตราส่วน 1:25');
+  });
+
+  it('เพิ่มเหล็กยืนเป็น 12 เส้น: แปลนมี 12 จุด ป้ายรูปตัด "12-DB16" — 4 เส้นไม่มีปลอกข้าวหลามตัด', () => {
+    const d = pileCapDesign(single);
+    const base = autoPileCapLayout(single, d.arrangement, d.t);
+    const a12 = analyzePileCap(single, d.arrangement, d.t, { ...base, cage: { ...base.cage!, count: 12 } });
+    expect(buildPlanModel(single, a12, 25).bars).toHaveLength(12);
+    expect(buildSectionModel(single, a12, 25).callouts.flatMap((c) => c.lines.map((l) => l.text))).toContain('12-DB16');
+    const a4 = analyzePileCap(single, d.arrangement, d.t, { ...base, cage: { ...base.cage!, count: 4 } });
+    const p4 = buildPlanModel(single, a4, 25);
+    expect(p4.bars).toHaveLength(4);
+    expect(p4.diamond).toBeNull();
+    expect(buildSectionModel(single, a4, 25).callouts.flatMap((c) => c.lines.map((l) => l.text))).toContain('1ป RB9 @0.10');
   });
 
   it('ป้ายชี้ด้านขวาไม่ทับกัน', () => {
@@ -85,6 +99,7 @@ describe('รูปตัดและแปลนตามแบบมาตร�
           }
           expect(picksOf(s).some((k) => k.key === 'B')).toBe(true);
           expect(picksOf(p).some((k) => k.key === 'L' || k.key === 'edgeY')).toBe(true);
+          expect(picksOf(p).some((k) => k.key === 'B' || k.key === 'edgeX')).toBe(true);
         }
       }
     }

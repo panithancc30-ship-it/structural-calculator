@@ -71,7 +71,10 @@ const isBarSet = (v: unknown) => {
 };
 const isCage = (value: unknown) => {
   const c = asObj(value);
-  return !!c && isBarName(c.size) && isBarName(c.tie) && typeof c.tieSpacing === 'number' && c.tieSpacing > 0;
+  return (
+    !!c && isBarName(c.size) && isBarName(c.tie) && typeof c.tieSpacing === 'number' && c.tieSpacing > 0 &&
+    (c.count === undefined || (Number.isInteger(c.count) && (c.count as number) >= 4 && (c.count as number) % 4 === 0))
+  );
 };
 const isLayout = (value: unknown): value is PileCapLayout => {
   const v = asObj(value);

@@ -17,6 +17,16 @@ describe('ไฟล์โครงการฐานรากเสาเข็�
     expect(parsed.edited).toBe(true);
   });
 
+  it('จำนวนเหล็กยืนเข็มต้นเดียวบันทึกและเปิดได้, ไฟล์เก่าไม่มีจำนวนก็เปิดได้, จำนวนผิดปฏิเสธ', () => {
+    const cage = { size: 'DB16' as const, count: 12, tie: 'RB9' as const, tieSpacing: 10 };
+    const file = toPileCapProjectFile({ input: DEFAULT_PILECAP, layout: { ...layout, cage }, edited: true });
+    const parsed = parsePileCapProject(JSON.parse(JSON.stringify(file)));
+    expect(typeof parsed !== 'string' && parsed.layout.cage).toEqual(cage);
+    const { count: _omit, ...old } = cage;
+    expect(typeof parsePileCapProject({ ...file, layout: { ...layout, cage: old } })).not.toBe('string');
+    expect(typeof parsePileCapProject({ ...file, layout: { ...layout, cage: { ...cage, count: 10 } } })).toBe('string');
+  });
+
   it('ปฏิเสธไฟล์ผิดรูปแบบ', () => {
     expect(typeof parsePileCapProject({ app: 'rc-footing-wsd' })).toBe('string');
     const file = toPileCapProjectFile({ input: DEFAULT_PILECAP, layout, edited: false });
