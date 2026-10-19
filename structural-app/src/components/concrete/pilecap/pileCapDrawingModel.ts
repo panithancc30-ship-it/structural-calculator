@@ -489,7 +489,7 @@ export interface PlanModel {
   cross: string;
   /** เข็มกลุ่ม: เหล็กตะแกรงสองทิศ */
   lines: Record<BarDir, { x1: number; y1: number; x2: number; y2: number }[]>;
-  /** เข็มต้นเดียว: ปลอกรอบนอก ปลอกข้าวหลามตัด และเหล็กยืน 8 เส้น */
+  /** เข็มต้นเดียว: ปลอกรอบนอก ปลอกข้าวหลามตัด และเหล็กยืนรอบฐาน */
   tie: { x: number; y: number; w: number; h: number; r: number; width: number } | null;
   diamond: string | null;
   bars: { x: number; y: number; r: number }[];
@@ -525,7 +525,8 @@ export function buildPlanModel(input: PileCapInput, a: PileCapAnalysis, denom: n
     const hx = B / 2 - cover - cage.dt / 2;
     const hy = L / 2 - cover - cage.dt / 2;
     tie = { x: -hx, y: -hy, w: 2 * hx, h: 2 * hy, r: cage.dt + cage.db / 2, width: Math.max(cage.dt, 0.2 * u) };
-    diamond = `M0,${-hy} L${hx},0 L0,${hy} L${-hx},0 Z`;
+    // ปลอกข้าวหลามตัดยึดเหล็กกลางด้าน — เหล็กยืน 4 เส้น (มุมอย่างเดียว) ไม่มี
+    diamond = cage.ties === 2 ? `M0,${-hy} L${hx},0 L0,${hy} L${-hx},0 Z` : null;
     const r = Math.max(cage.db / 2, 0.35 * u);
     bars = cage.bars.map((p) => ({ x: p.x, y: -p.y, r }));
   } else {
@@ -547,18 +548,39 @@ export function buildPlanModel(input: PileCapInput, a: PileCapAnalysis, denom: n
     };
   });
 
-  // ---- เส้นบอกขนาด: ด้านซ้าย (แกน y) ใกล้รูป: เยื้องศูนย์ → ระยะเข็ม → รวม, ด้านล่างเฉพาะเยื้องศูนย์ ex
+  // ---- เส้นบอกขนาดทั้งสองแกน: ด้านล่าง (แกน x) และด้านซ้าย (แกน y) เรียงจากใกล้รูป: เยื้องศูนย์ → ระยะเข็ม → รวม
+  // เข็มต้นเดียวมีแค่ระยะขอบถึงศูนย์ (ตามแบบมาตรฐาน) — เข็มกลุ่มเพิ่มความยาวรวม
   const dims: DimLine[] = [];
   const dimPicks: (DimPick | null)[][] = [];
   const extParts: string[] = [];
   const ex = column.x - gc.x;
   const ey = column.y - gc.y;
+
+  let row = L / 2 + 5 * u;
+  const nextRow = (d: DimLine) => (row += d.texts.some((t) => t.side > 0) ? 6.5 * u : 5 * u);
   if (Math.abs(ex) > 0.5) {
-    const row = L / 2 + 5 * u;
-    dims.push(dimLine([{ a: Math.min(gc.x, column.x), b: Math.max(gc.x, column.x), text: `e ${meters(Math.abs(ex))}` }], row, false, sizes.dim, u, occupied));
+    const d = dimLine([{ a: Math.min(gc.x, column.x), b: Math.max(gc.x, column.x), text: `e ${meters(Math.abs(ex))}` }], row, false, sizes.dim, u, occupied);
+    dims.push(d);
     dimPicks.push([{ kind: 'dim', key: 'ex', value: Math.abs(ex) }]);
     extParts.push(`M${column.x},${L / 2 + 0.8 * u} V${row + 1.2 * u}`, `M${gc.x},${L / 2 + 1.6 * u} V${row + 1.2 * u}`);
+    nextRow(d);
   }
+  const xs = uniqueSorted(nominal.map((p) => p.x));
+  const chainX = segments([-B / 2, ...xs, B / 2]);
+  const overallX = chainX.length <= 1 || nominal.length > 1;
+  if (chainX.length > 1) {
+    const d = dimLine(chainX, row, false, sizes.dim, u, occupied);
+    dims.push(d);
+    dimPicks.push(chainPicks(chainX, 'edgeX', 'spacingX', input.spacing));
+    for (const x of xs) extParts.push(`M${x},${L / 2 + 0.8 * u} V${row + 1.2 * u}`);
+    if (overallX) nextRow(d);
+  }
+  if (overallX) {
+    dims.push(dimLine([{ a: -B / 2, b: B / 2, text: meters(B) }], row, false, sizes.dim, u, occupied));
+    dimPicks.push([{ kind: 'dim', key: 'B', value: B }]);
+  }
+  for (const x of [-B / 2, B / 2]) extParts.push(`M${x},${L / 2 + 0.8 * u} V${row + 1.2 * u}`);
+
   let col = -B / 2 - 5 * u;
   if (Math.abs(ey) > 0.5) {
     dims.push(dimLine([{ a: Math.min(-gc.y, -column.y), b: Math.max(-gc.y, -column.y), text: `e ${meters(Math.abs(ey))}` }], col, true, sizes.dim, u, occupied));
@@ -568,15 +590,14 @@ export function buildPlanModel(input: PileCapInput, a: PileCapAnalysis, denom: n
   }
   const ys = uniqueSorted(nominal.map((p) => -p.y));
   const chainY = segments([-L / 2, ...ys, L / 2]);
-  // เข็มต้นเดียวมีแค่ระยะขอบถึงศูนย์ (ตามแบบมาตรฐาน) — เข็มกลุ่มเพิ่มความยาวรวม
-  const overall = chainY.length <= 1 || nominal.length > 1;
+  const overallY = chainY.length <= 1 || nominal.length > 1;
   if (chainY.length > 1) {
     dims.push(dimLine(chainY, col, true, sizes.dim, u, occupied));
     dimPicks.push(chainPicks(chainY, 'edgeY', 'spacingY', input.spacing));
     for (const y of ys) extParts.push(`M${-B / 2 - 0.8 * u},${y} H${col - 1.2 * u}`);
-    if (overall) col -= 5 * u;
+    if (overallY) col -= 5 * u;
   }
-  if (overall) {
+  if (overallY) {
     dims.push(dimLine([{ a: -L / 2, b: L / 2, text: meters(L) }], col, true, sizes.dim, u, occupied));
     dimPicks.push([{ kind: 'dim', key: 'L', value: L }]);
   }

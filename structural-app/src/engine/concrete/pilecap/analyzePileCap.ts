@@ -6,12 +6,13 @@ import { footingGeometry, type ColumnLocation, type FootingGeometry } from '../f
 import type { Pt } from '../footing/polygon';
 import { punchingPerimeter, type PunchingPerimeter } from '../footing/punching';
 import type { BarDir } from '../footing/types';
-import { cmToM, fmt } from '../format';
+import { fmt } from '../format';
 import { REBARS, type BarName } from '../rebar';
 import type { CalcStep, CheckItem, CheckStatus } from '../types';
-import { analyzeCage, autoCage, type CageAnalysis } from './cage';
+import { analyzeCage, autoCage, cageTieText, type CageAnalysis } from './cage';
+export { cageTieText } from './cage';
 import { outsideDistance, outsideShare, pileLayout, pileReactions, type PileLayout, type PileReactions } from './piles';
-import type { PileArrangement, PileCapCage, PileCapDims, PileCapInput, PileCapLayout } from './types';
+import type { PileArrangement, PileCapDims, PileCapInput, PileCapLayout } from './types';
 
 export const DIR_TH: Record<BarDir, string> = { x: 'ทิศ X', y: 'ทิศ Y' };
 
@@ -376,8 +377,6 @@ const ton = (kg: number) => fmt(kg / 1000, 2);
 const tm = (kgcm: number) => fmt(kgcm / 1e5, 2);
 const meter = (cm: number) => fmt(cm / 100, 2);
 const r2 = (r: PileCapDirection) => `${r.count}-${r.size}`;
-/** ปลอก 2 ชุดต่อชั้น (รอบนอก + ข้าวหลามตัด) เช่น "2ป RB9 @0.10" */
-export const cageTieText = (c: PileCapCage) => `2ป ${c.tie} @${cmToM(c.tieSpacing)}`;
 
 export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement, t: number, layout: PileCapLayout): PileCapAnalysis {
   const loads = pileCapLoads(input, arrangement, t);
@@ -501,10 +500,10 @@ export function analyzePileCap(input: PileCapInput, arrangement: PileArrangement
   ];
   if (cage) {
     steps.push(
-      { label: 'เหล็กยืน', formula: `${fmt(cage.rho, 4)}·Bx·By — ${cage.count} เส้น มุมและกลางด้าน`, value: `${fmt(cage.AsVReq)} → ${cage.count}-${cage.size} = ${fmt(cage.AsV)} ซม.²`, print: true },
+      { label: 'เหล็กยืน', formula: `${fmt(cage.rho, 4)}·Bx·By — ${cage.count} เส้น ด้านละ ${cage.perSide} เส้น`, value: `${fmt(cage.AsVReq)} → ${cage.count}-${cage.size} = ${fmt(cage.AsV)} ซม.²`, print: true },
       {
         label: 'ปลอก',
-        formula: `${cage.tieZ.length} ชั้น × (2 + 2cos45°) ขา ≥ ${fmt(cage.rhoTie, 4)}·b·t`,
+        formula: `${cage.tieZ.length} ชั้น × ${cage.ties === 2 ? '(2 + 2cos45°)' : '2'} ขา ≥ ${fmt(cage.rhoTie, 4)}·b·t`,
         value: `${cageTieText(cage)}: ${fmt(cage.AsTie)} ≥ ${fmt(cage.AsTieReq)} ซม.²`,
         print: true,
       },

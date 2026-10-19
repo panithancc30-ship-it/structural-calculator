@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ACI318_WSD_PILECAP as K } from '@/engine/concrete/codes/aci318Wsd';
 import { cmToM, fmt } from '@/engine/concrete/format';
-import type { CageAnalysis } from '@/engine/concrete/pilecap/cage';
+import { cageBarCount, cageTieText, type CageAnalysis } from '@/engine/concrete/pilecap/cage';
 import type { PileCapCage, PileCapDims, PileCapInput } from '@/engine/concrete/pilecap/types';
 import { validatePileCapInput } from '@/engine/concrete/pilecap/validate';
 import { MAIN_BAR_SIZES, STIRRUP_BAR_SIZES } from '@/engine/concrete/rebar';
@@ -100,15 +100,29 @@ export function PileCapCagePopover({ cage, analysis, suggested, apply }: {
   apply: (fn: (cage: PileCapCage) => PileCapCage) => void;
 }) {
   const spacing = (delta: number) => apply((c) => ({ ...c, tieSpacing: Math.min(30, Math.max(5, c.tieSpacing + delta)) }));
-  const same = suggested.size === cage.size && suggested.tie === cage.tie && suggested.tieSpacing === cage.tieSpacing;
+  const setCount = (delta: number) => apply((c) => ({ ...c, count: cageBarCount({ count: cageBarCount(c) + delta }) }));
+  const same =
+    suggested.size === cage.size && cageBarCount(suggested) === cageBarCount(cage) && suggested.tie === cage.tie && suggested.tieSpacing === cage.tieSpacing;
   return (
     <>
       <div className="popover-title">
         เหล็กเสริมเข็มต้นเดียว <small>(ตามแบบมาตรฐาน)</small>
       </div>
-      <div className="popover-sub">เหล็กยืน {K.cageBars} เส้น (มุม + กลางด้าน)</div>
+      <div className="popover-sub">เหล็กยืนรอบฐาน — ขนาด</div>
       <SizeChips sizes={MAIN_BAR_SIZES} value={cage.size} onPick={(size) => apply((c) => ({ ...c, size }))} />
-      <div className="popover-sub">ปลอกรอบนอก + ปลอกข้าวหลามตัด (2ป)</div>
+      <div className="popover-sub">จำนวนเหล็กยืน (เพิ่ม/ลดทีละ 4 เส้น เรียงเท่ากันทุกด้าน)</div>
+      <div className="spacing-row">
+        <button type="button" className="btn" onClick={() => setCount(-4)} aria-label="ลดจำนวนเหล็กยืน" disabled={analysis.count <= K.cageMinBars}>
+          −
+        </button>
+        <span className="spacing-val">
+          {analysis.count}-{analysis.size} (ด้านละ {analysis.perSide} เส้น)
+        </span>
+        <button type="button" className="btn" onClick={() => setCount(4)} aria-label="เพิ่มจำนวนเหล็กยืน" disabled={analysis.count >= K.cageMaxBars}>
+          +
+        </button>
+      </div>
+      <div className="popover-sub">{analysis.ties === 2 ? 'ปลอกรอบนอก + ปลอกข้าวหลามตัด (2ป)' : 'ปลอกรอบนอก (1ป)'}</div>
       <SizeChips sizes={STIRRUP_BAR_SIZES} value={cage.tie} onPick={(tie) => apply((c) => ({ ...c, tie }))} />
       <div className="spacing-row">
         <button type="button" className="btn" onClick={() => spacing(-TIE_STEP)} aria-label="ลดระยะเรียงปลอก" disabled={cage.tieSpacing <= 5}>
@@ -120,13 +134,13 @@ export function PileCapCagePopover({ cage, analysis, suggested, apply }: {
         </button>
       </div>
       <p className="popover-hint">
-        เหล็กยืน As ≥ {fmt(analysis.AsVReq)} ซม.² (ใส่ {fmt(analysis.AsV)}) — ปลอก As ต่อทิศ ≥ {fmt(analysis.AsTieReq)} (ใส่ {fmt(analysis.AsTie)}),
-        ระยะเรียง ≤ {fmt(analysis.tieSMax, 1)} ซม.
+        เหล็กยืน As ≥ {fmt(analysis.AsVReq)} ซม.² (ใส่ {fmt(analysis.AsV)}), ระยะเรียง {fmt(analysis.pitch, 1)} ≤ {fmt(analysis.sMax, 1)} ซม. — ปลอก As ต่อทิศ ≥{' '}
+        {fmt(analysis.AsTieReq)} (ใส่ {fmt(analysis.AsTie)}), ระยะเรียง ≤ {fmt(analysis.tieSMax, 1)} ซม.
       </p>
       {!same && (
         <div className="popover-actions">
           <button type="button" className="btn small" onClick={() => apply(() => suggested)}>
-            ใช้ค่าที่คำนวณได้ {K.cageBars}-{suggested.size}, 2ป {suggested.tie} @{cmToM(suggested.tieSpacing)}
+            ใช้ค่าที่คำนวณได้ {cageBarCount(suggested)}-{suggested.size}, {cageTieText(suggested)}
           </button>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyzePileCap, basketRecommended, pileCapLoads } from './analyzePileCap';
+import { cageBarCount, cageTieText } from './cage';
 import { autoPileCapLayout, pileCapDesign } from './designPileCap';
 import { pileLayout, pileReactions } from './piles';
 import type { PileCapInput } from './types';
@@ -162,7 +163,7 @@ describe('เข็มต้นเดียว: เหล็กยืน + ป�
 
   it('ฐาน 0.60 × 0.60 ใช้ 8-DB16 + 2ป RB9 @0.10 และผ่านทุกข้อ', () => {
     expect(a.dims).toMatchObject({ B: 60, L: 60 });
-    expect(layout.cage).toEqual({ size: 'DB16', tie: 'RB9', tieSpacing: 10 });
+    expect(layout.cage).toEqual({ size: 'DB16', count: 8, tie: 'RB9', tieSpacing: 10 });
     expect(layout.basket).toBe(false);
     expect(a.cage).not.toBeNull();
     expect(a.checks.filter((c) => c.status !== 'ok')).toEqual([]);
@@ -189,6 +190,42 @@ describe('เข็มต้นเดียว: เหล็กยืน + ป�
     const d = pileCapDesign({ ...single, countMode: 'auto', thicknessMode: 'auto' });
     expect(d.arrangement.count).toBe(1);
     expect(d.t).toBe(60);
+  });
+
+  it('เพิ่มเหล็กยืนเป็น 12 เส้น: ด้านละ 4 เส้น เรียงเท่ากัน As เพิ่มตาม', () => {
+    const c = analyzePileCap(single, one, 80, { ...layout, cage: { ...layout.cage!, count: 12 } }).cage!;
+    expect(c.count).toBe(12);
+    expect(c.perSide).toBe(4);
+    expect(c.bars).toHaveLength(12);
+    expect(new Set(c.bars.map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`)).size).toBe(12);
+    expect(c.AsV).toBeCloseTo(12 * REBARS.DB16.area, 8);
+    const ax = 30 - c.inset;
+    expect(c.pitch).toBeCloseTo((2 * ax) / 3, 8);
+    expect(c.ties).toBe(2);
+    expect(cageTieText(c)).toBe('2ป RB9 @0.10');
+  });
+
+  it('เหล็กยืน 4 เส้น (มุมอย่างเดียว) ใช้ปลอกรอบนอกชุดเดียว — ขาปลอก 2 ขาต่อทิศ', () => {
+    const c = analyzePileCap(single, one, 80, { ...layout, cage: { ...layout.cage!, count: 4 } }).cage!;
+    expect(c.bars).toHaveLength(4);
+    expect(c.ties).toBe(1);
+    expect(cageTieText(c)).toBe('1ป RB9 @0.10');
+    expect(c.AsTie).toBeCloseTo(c.tieZ.length * 2 * REBARS.RB9.area, 8);
+  });
+
+  it('จำนวนเหล็กยืนปัดเป็นทวีคูณของ 4 ในช่วง 4–40', () => {
+    expect(cageBarCount({})).toBe(8);
+    expect(cageBarCount({ count: 13 })).toBe(12);
+    expect(cageBarCount({ count: 0 })).toBe(4);
+    expect(cageBarCount({ count: 100 })).toBe(40);
+  });
+
+  it('ฐานเข็มต้นเดียวขนาดใหญ่: โปรแกรมเพิ่มจำนวนเหล็กยืนจนระยะเรียงไม่เกิน min(3t, 45)', () => {
+    const big: PileCapInput = { ...single, pileSize: 60, pileCapacity: 150, P: 100000, sizeMode: 'manual', B: 160, L: 160 };
+    const l = autoPileCapLayout(big, one, 80);
+    expect(l.cage!.count).toBeGreaterThan(8);
+    const c = analyzePileCap(big, one, 80, l).cage!;
+    expect(c.pitch).toBeLessThanOrEqual(c.sMax);
   });
 
   it('ไฟล์เก่าที่ไม่มี cage ใช้เหล็กยืนที่ออกแบบอัตโนมัติ', () => {

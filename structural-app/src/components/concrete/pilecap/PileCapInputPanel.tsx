@@ -197,7 +197,7 @@ export function PileCapInputPanel({ design }: { design: { arrangement: PileArran
         <legend>เหล็กเสริม</legend>
         <BarSelect label="ขนาดเหล็กที่ต้องการ (ขยับขนาดอัตโนมัติเมื่อจำเป็น)" value={input.bar} sizes={MAIN_BAR_SIZES} onChange={(bar) => setInput({ bar })} />
         {count === 1 && (
-          <span className="field-hint">เข็มต้นเดียว: เหล็กยืน 8 เส้น + ปลอก 2ป (รอบนอก + ข้าวหลามตัด) ตามแบบมาตรฐาน — แก้ได้ที่เหล็กในรูป</span>
+          <span className="field-hint">เข็มต้นเดียว: เหล็กยืนรอบฐาน (มาตรฐาน 8 เส้น) + ปลอก 2ป (รอบนอก + ข้าวหลามตัด) — แตะเหล็กในรูปเพื่อเปลี่ยนขนาด/จำนวน</span>
         )}
       </fieldset>
     </div>
