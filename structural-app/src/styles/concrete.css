@@ -668,6 +668,54 @@
   max-height: 340px;
 }
 
+/* ---------- pile cap: รูปตัด 1 รูป + แปลน 1 รูป มาตราส่วนเดียวกัน ---------- */
+.rc-scope .pilecap-figures {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px 24px;
+}
+
+.rc-scope .pilecap-fig {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+/* จอแคบ: วางรูปตัดเหนือแปลนตามแบบ (บล็อกธรรมดา รูปจึงไม่ดันความกว้างหน้า) */
+@media (max-width: 720px) {
+  .rc-scope .pilecap-figures {
+    display: block;
+  }
+
+  .rc-scope .pilecap-fig + .pilecap-fig {
+    margin-top: 10px;
+  }
+}
+
+.rc-scope .pilecap-figures .section-drawing {
+  margin: 0;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+}
+
+/* ตัวเลขบอกระยะที่แตะแก้ได้ */
+.rc-scope .section-drawing .dim-hit {
+  fill: transparent;
+}
+
+.rc-scope .section-drawing.interactive .dim-text:hover .dim-hit {
+  fill: rgba(29, 95, 191, 0.12);
+}
+
+.rc-scope .section-drawing.interactive .dim-text:hover text,
+.rc-scope .section-drawing.interactive .dim-text.selected text {
+  fill: var(--accent);
+}
+
+.rc-scope .section-drawing.interactive .dim-text.selected .dim-hit {
+  fill: rgba(29, 95, 191, 0.18);
+}
+
 .rc-scope .auto-dims {
   font-weight: 600;
   font-variant-numeric: tabular-nums;

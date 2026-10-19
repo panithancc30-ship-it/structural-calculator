@@ -1,5 +1,5 @@
 import { PileCapPlan, PileCapSection } from '@/components/concrete/pilecap/PileCapDrawings'
-import { PILE_LENGTH_NOTE, pickDrawingScale, pileText } from '@/components/concrete/pilecap/pileCapDrawingModel'
+import { PILE_LENGTH_NOTE, embedOf, pickDrawingScale, pileText, reinforcementText } from '@/components/concrete/pilecap/pileCapDrawingModel'
 import { fmt } from '@/engine/concrete/format'
 import { analyzePileCap, type PileCapAnalysis } from '@/engine/concrete/pilecap/analyzePileCap'
 import { pileCapDesign } from '@/engine/concrete/pilecap/designPileCap'
@@ -19,6 +19,10 @@ const NOTES = [
   'ออกแบบโครงสร้างด้วยแรงเข็มจาก P, M (น้ำหนักฐานรากถ่ายลงเข็มโดยตรง); เข็มคร่อมหน้าตัดวิกฤตคิดตามสัดส่วน (ACI 15.5.4)',
   PILE_LENGTH_NOTE,
 ]
+
+const CAGE_NOTE =
+  'เข็มต้นเดียวใต้เสา (ไม่มีโมเมนต์ดัด): เสริมเหล็กตามแบบมาตรฐาน — เหล็กยืน 8 เส้น (มุมและกลางด้าน) งอผ่านท้องฐานและงอฉากที่ผิวบน ' +
+  'ปลอกรอบนอกและปลอกข้าวหลามตัดชั้นละ 2 ชุด ตรวจปริมาณเหล็กขั้นต่ำ ρ ของเหล็กกันร้าว และความลึกเหนือหัวเข็ม ≥ 30 ซม.'
 
 const BASKET_NOTE =
   'เหล็กเสริมแบบตะกร้อ: เหล็กทั้งสองทิศงอเป็นวงปิดหุ้มผิวล่าง ผิวข้าง และผิวบน ต่อทาบที่ผิวบน ' +
@@ -58,9 +62,9 @@ export function ConcretePileCapSheet({ project, title, input, remarks, pageNumbe
     {
       label: 'ฐานราก',
       cells: [
-        `Bx × By × t = ${m2(dims.B)} × ${m2(dims.L)} × ${m2(dims.t)} ม.`,
+        `Bx × By × t = ${m2(dims.B)} × ${m2(dims.L)} × ${m2(dims.t)} ม.${cap.sizeMode === 'manual' ? ' (กำหนดเอง)' : ''}`,
         `เสา ${fmt(cap.cx, 0)} × ${fmt(cap.cy, 0)} ซม., เยื้อง ex = ${m2(cap.ex)}, ey = ${m2(cap.ey)} ม.`,
-        `covering = ${fmt(cap.cover, 1)} ซม., Df = ${fmt(cap.Df, 2)} ม.`,
+        `covering = ${fmt(cap.cover, 1)} ซม., หัวเข็มฝัง ${m2(embedOf(cap, analysis))} ม., Df = ${fmt(cap.Df, 2)} ม.`,
       ],
     },
     {
@@ -84,23 +88,20 @@ export function ConcretePileCapSheet({ project, title, input, remarks, pageNumbe
       cells: [
         `Rmax = ${fmt(pile.Rmax / 1000, 2)}, Rmin = ${fmt(pile.Rmin / 1000, 2)} ตัน/ต้น`,
         `R: ${loads.service.R.map((r) => fmt(r / 1000, 1)).join(', ')} ตัน`,
-        `เหล็ก X ${analysis.x.count}-${analysis.x.size}, Y ${analysis.y.count}-${analysis.y.size}`,
+        reinforcementText(analysis),
       ],
     },
   ]
 
+  // ตามแบบมาตรฐาน: รูปตัด 1 รูป + แปลน 1 รูป มาตราส่วนเดียวกัน ชื่อรูปอยู่ใต้แปลน
   const figures = (
     <>
-      <figure className="rc-plan">
+      <figure>
+        <PileCapSection input={cap} analysis={analysis} denom={denom} physicalSize />
+      </figure>
+      <figure>
         <PileCapPlan input={cap} analysis={analysis} denom={denom} physicalSize />
       </figure>
-      <div className="rc-sections">
-        {(['x', 'y'] as const).map((dir) => (
-          <figure key={dir}>
-            <PileCapSection input={cap} analysis={analysis} denom={denom} dir={dir} physicalSize />
-          </figure>
-        ))}
-      </div>
     </>
   )
 
@@ -111,12 +112,12 @@ export function ConcretePileCapSheet({ project, title, input, remarks, pageNumbe
       docTitle="ฐานรากเสาเข็มคอนกรีตเสริมเหล็ก"
       subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD_PILECAP.label}`}
       inputRows={inputRows}
-      figureTitle="แปลนฐานรากเสาเข็ม และรูปตัด"
+      figureTitle="รูปตัด และแปลนฐานรากเสาเข็ม"
       figures={figures}
       checks={analysis.checks}
       steps={analysis.steps.filter((s) => s.print)}
       status={analysis.status}
-      notes={analysis.basket ? [...NOTES, BASKET_NOTE] : NOTES}
+      notes={analysis.cage ? [...NOTES, CAGE_NOTE] : analysis.basket ? [...NOTES, BASKET_NOTE] : NOTES}
       remarks={remarks}
       pageNumber={pageNumber}
       totalPages={totalPages}
