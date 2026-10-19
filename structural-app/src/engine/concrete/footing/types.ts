@@ -1,3 +1,4 @@
+import type { DesignCode } from '../codes/designCode';
 import type { BarName } from '../rebar';
 
 /** ตำแหน่งเสาบนฐานราก: ศูนย์กลาง, เยื้องศูนย์ (กำหนดระยะ), ตีนเป็ดชิดขอบ, ตีนเป็ดชิดมุม */
@@ -41,6 +42,9 @@ export interface FootingInput {
   /** กำลังรับน้ำหนักบรรทุกที่ยอมให้ของดิน (t/m²) — เทียบกับแรงดันรวมน้ำหนักฐานรากและดินถม */
   qa: number;
   gammaSoil: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

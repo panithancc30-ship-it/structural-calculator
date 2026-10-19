@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_SLAB as KS, ACI318_WSD_STAIR as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { wsdParams, type WsdParams } from '../design/flexure';
 import { worstStatus } from '../design/sectionCheck';
 import { asMinRatio } from '../footing/analyzeFooting';
@@ -96,7 +97,7 @@ function barDemand(
   const db = diaOf(run);
   const d = t - input.cover - behind - db / 2;
   // As ต่ำสุดของแผ่นพื้นคือเหล็กกันร้าวคิดเต็มความหนา (7.12) เหมือนโมดูลพื้น
-  const AsMin = kind === 'nominal' ? 0 : asMinRatio(input.fy) * STRIP * t;
+  const AsMin = kind === 'nominal' ? 0 : asMinRatio(input.fy, codeOf(input)) * STRIP * t;
   const AsFlex = Mdesign > 0 ? (d > 0 ? Mdesign / (p.fsAllow * p.j * d) : Infinity) : 0;
   const AsReq = Math.max(AsFlex, AsMin);
   const AsProv = run ? (STRIP / run.spacing) * REBARS[run.size].area : 0;

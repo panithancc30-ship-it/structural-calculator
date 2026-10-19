@@ -5,9 +5,9 @@ import type { AutoMode, PileArrangement, PileCapInput, PileShape } from '@/engin
 import { MAIN_BAR_SIZES, STEEL_GRADES } from '@/engine/concrete/rebar';
 import { useColumnStore } from '@/state/columnStore';
 import { usePileCapStore } from '@/state/pileCapStore';
-import { BarSelect, NumberField, Segmented, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 
-type NumericKey = { [P in keyof PileCapInput]: PileCapInput[P] extends number ? P : never }[keyof PileCapInput];
+type NumericKey = { [P in keyof PileCapInput]-?: PileCapInput[P] extends number ? P : never }[keyof PileCapInput];
 
 /** เสากลมแทนด้วยเสาสี่เหลี่ยมจัตุรัสพื้นที่เท่ากัน (ACI 15.3) */
 function importFromColumn(): Partial<PileCapInput> {
@@ -33,6 +33,7 @@ export function PileCapInputPanel({ design }: { design: { arrangement: PileArran
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>เสา / ตอม่อ</legend>
         <div className="grid2">

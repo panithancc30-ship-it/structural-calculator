@@ -1,7 +1,7 @@
 import { REBARS, isBarName } from '../rebar';
 import type { ColumnInput } from './types';
 
-type NumericKey = { [K in keyof ColumnInput]: ColumnInput[K] extends number ? K : never }[keyof ColumnInput];
+type NumericKey = { [K in keyof ColumnInput]-?: ColumnInput[K] extends number ? K : never }[keyof ColumnInput];
 
 const RANGES: Partial<Record<NumericKey, [number, number, string]>> = {
   cover: [2, 10, 'ระยะหุ้ม covering'],

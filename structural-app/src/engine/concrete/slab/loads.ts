@@ -1,4 +1,5 @@
 import { ACI318_WSD_SLAB as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import type { BarDir } from '../footing/types';
 import type { SupportCondition } from '../types';
 import { edgesOf, spanOf, supportConditionOf } from './geometry';
@@ -17,13 +18,29 @@ export interface SlabLoads {
   w: number;
   /**
    * น้ำหนักที่ใช้คำนวณแถบแต่ละทิศ (กก./ตร.ม.)
-   * พื้นสองทางใช้ w เต็มทั้งสองทิศ เพราะตารางวิธีที่ 2 แบ่งน้ำหนักไว้ในสัมประสิทธิ์แล้ว
+   * พื้นสองทาง วสท. ใช้ w เต็มทั้งสองทิศ เพราะตารางวิธีที่ 2 แบ่งน้ำหนักไว้ในสัมประสิทธิ์แล้ว
+   * พื้นสองทาง ACI แบ่ง w ด้วย Rankine–Grashof แล้วคิดแต่ละแถบเป็นพื้นทางเดียว
    */
   share: Record<BarDir, number>;
   /** ทิศช่วงสั้น — null เมื่อไม่ใช่พื้นสองทาง */
   shortDir: BarDir | null;
   /** พื้นสองทาง วิธีที่ 2: m = S/L และกรณีตามจำนวนขอบไม่ต่อเนื่อง */
   twoWay: { m: number; caseNo: TwoWayCase } | null;
+  /** พื้นสองทาง ACI: สัดส่วนน้ำหนักที่แถบทิศ x รับ (Rankine–Grashof) */
+  splitRatio: number | null;
+}
+
+/**
+ * แบ่งน้ำหนักพื้นสองทางด้วยวิธี Rankine–Grashof (ใช้เมื่อเลือกมาตรฐาน ACI)
+ *
+ * ให้การโก่งตัวกลางแผ่นของแถบสองทิศเท่ากัน: wx·lx⁴ = wy·ly⁴ และ wx + wy = w
+ * จึงได้ wx = w·ly⁴/(lx⁴+ly⁴) — เมื่อ ly > lx จะได้ wx > wy คือแถบด้านสั้นรับน้ำหนักมากกว่า
+ * เป็นค่าประมาณที่ตั้งอยู่บนสมมติฐานว่าสองแถบมี EI และสภาพรองรับเหมือนกัน
+ */
+export function rankineGrashof(lx: number, ly: number): number {
+  const a = lx ** 4;
+  const b = ly ** 4;
+  return a + b > 0 ? b / (a + b) : 0.5;
 }
 
 export type TwoWayCase = 1 | 2 | 3 | 4 | 5;
@@ -58,16 +75,27 @@ export function slabLoads(input: SlabInput, t: number): SlabLoads {
   const w = wDead + wLive;
 
   if (input.slabType === 'twoWay') {
+    if (codeOf(input) === 'aci') {
+      const ratio = rankineGrashof(input.lx, input.ly);
+      return {
+        wSelf, wDead, wLive, w,
+        share: { x: w * ratio, y: w * (1 - ratio) },
+        shortDir: shortDirOf(input),
+        twoWay: null,
+        splitRatio: ratio,
+      };
+    }
     return {
       wSelf, wDead, wLive, w,
       share: { x: w, y: w },
       shortDir: shortDirOf(input),
       twoWay: { m: ratioOf(input), caseNo: twoWayCase(input) },
+      splitRatio: null,
     };
   }
 
   // ทางเดียว / พื้นยื่น / พื้นวางบนดิน — แถบทิศ x รับน้ำหนักทั้งหมด ทิศ y เป็นเหล็กกันร้าว
-  return { wSelf, wDead, wLive, w, share: { x: w, y: 0 }, shortDir: null, twoWay: null };
+  return { wSelf, wDead, wLive, w, share: { x: w, y: 0 }, shortDir: null, twoWay: null, splitRatio: null };
 }
 
 export interface StripMoments {

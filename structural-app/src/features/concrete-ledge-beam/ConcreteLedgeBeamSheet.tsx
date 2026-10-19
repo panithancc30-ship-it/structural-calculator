@@ -1,7 +1,7 @@
 import { SectionDrawing } from '@/components/concrete/drawing/SectionDrawing'
 import { pickScale } from '@/components/concrete/drawing/drawingModel'
 import { SECTION_TITLES, SUPPORT_TH } from '@/components/concrete/labels'
-import { ACI318_WSD } from '@/engine/concrete/codes/aci318Wsd'
+import { codeLabel, codeOf, type DesignCode } from '@/engine/concrete/codes/designCode'
 import { fmt } from '@/engine/concrete/format'
 import { analyzeLedgeBeam, type LedgeAnalysis } from '@/engine/concrete/ledge/analyzeLedge'
 import { validateLedgeInput } from '@/engine/concrete/ledge/validate'
@@ -16,8 +16,11 @@ const KEYS: SectionKey[] = ['A', 'B']
 
 const NOTES = [
   'หน่วย kg, cm, ksc — น้ำหนักใช้งาน ความยาวพื้นยื่นวัดจากศูนย์กลางคาน · ปลายคานยึดไม่ให้บิด T = t·L/2 · V และ T ที่ระยะ d จากที่รองรับใช้ตรวจทั้งสองหน้าตัด (ปลอดภัยไว้ก่อน)',
-  'แรงบิดตาม วสท.: vt = 3.5T/Σx²y ≤ 1.32√f′c, v + vt ≤ 1.65√f′c, vt > 0.29√f′c เหล็กปลอกปิดรับแรงบิดทั้งหมด',
 ]
+const TORSION_NOTE: Record<DesignCode, string> = {
+  eit: 'แรงบิดตาม วสท.: vt = 3.5T/Σx²y ≤ 1.32√f′c, v + vt ≤ 1.65√f′c, vt > 0.29√f′c เหล็กปลอกปิดรับแรงบิดทั้งหมด',
+  aci: 'แรงบิดตาม ACI 318-83: vt = 3T/Σx²y, vt ≤ 0.22√f′c ละเลยได้, คอนกรีตรับแรงเฉือนและแรงบิดร่วมกัน (vc, vtc), v − vc ≤ 1.16√f′c',
+}
 const CONTINUOUS_NOTE = 'ช่วงต่อเนื่องใช้สัมประสิทธิ์โมเมนต์โดยประมาณ (วสท. ตรงกับ ACI 8.3.3) ต้องมีช่วงใกล้เคียงกันและ LL ≤ 3DL'
 
 /** ขั้นตอนของหน้าตัดที่พิมพ์ต่อจากน้ำหนัก — เหล็กรับแรงบิดคือสิ่งที่คานรับพื้นยื่นต่างจากคานทั่วไป */
@@ -121,14 +124,14 @@ export function ConcreteLedgeBeamSheet({ project, title, input, remarks, pageNum
       project={project}
       title={title}
       docTitle="คานรับพื้นยื่น คอนกรีตเสริมเหล็ก"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(file.input), 'คานรับพื้นยื่น')}`}
       inputRows={inputRows}
       figureTitle="หน้าตัดและการเสริมเหล็ก"
       figures={figures}
       checks={analysis.checks}
       steps={steps}
       status={analysis.status}
-      notes={loads.divisors.neg === null ? NOTES : [...NOTES, CONTINUOUS_NOTE]}
+      notes={[...NOTES, TORSION_NOTE[codeOf(file.input)], ...(loads.divisors.neg === null ? [] : [CONTINUOUS_NOTE])]}
       remarks={remarks}
       pageNumber={pageNumber}
       totalPages={totalPages}

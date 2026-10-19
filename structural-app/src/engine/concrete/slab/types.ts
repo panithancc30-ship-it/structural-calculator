@@ -1,3 +1,4 @@
+import type { DesignCode } from '../codes/designCode';
 import type { BarDir } from '../footing/types';
 import type { BarName } from '../rebar';
 import type { Face } from '../types';
@@ -48,6 +49,9 @@ export interface SlabInput {
   /** ความหนาที่กำหนดเอง (ใช้เมื่อ thicknessMode = 'manual') */
   t: number;
   cover: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

@@ -1,5 +1,6 @@
 /** เหล็กปลอกเดี่ยว / ปลอกเกลียวของเสา */
 import { ACI318_WSD as C, ACI318_WSD_COLUMN as K } from '../codes/aci318Wsd';
+import { ACI_ADM, codeOf } from '../codes/designCode';
 import { REBARS, type BarName } from '../rebar';
 import type { ColumnGeometry } from './geometry';
 import type { ColumnInput } from './types';
@@ -12,12 +13,15 @@ export interface TieRequirement {
   spacing: number;
 }
 
+/** Ø ปลอกเดี่ยวขั้นต่ำ — วสท. 6 มม., ACI 9 มม. (#3) */
+export const tieMinDia = (input: ColumnInput) => (codeOf(input) === 'aci' ? ACI_ADM.column.tieMinDia : K.tieMinDia);
+
 export function tieRequirement(input: ColumnInput, geom: ColumnGeometry, size: BarName): TieRequirement {
   const dbMax = geom.bars.reduce((m, b) => Math.max(m, b.dia), 0) || REBARS[input.mainBar].dia;
   const dt = REBARS[size].dia;
   const sMax = Math.min(K.tieSpacingDb * dbMax, K.tieSpacingDt * dt, Math.min(input.b, input.h));
   const spacing = Math.max(C.spacingStep, Math.floor(sMax / C.spacingStep + 1e-9) * C.spacingStep);
-  return { minDia: K.tieMinDia, sMax, spacing };
+  return { minDia: tieMinDia(input), sMax, spacing };
 }
 
 export interface SpiralRequirement {

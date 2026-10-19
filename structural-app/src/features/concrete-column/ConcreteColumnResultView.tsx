@@ -7,6 +7,7 @@ import { usePopover } from '@/components/concrete/editor/usePopover'
 import { CalcSteps } from '@/components/concrete/results/CalcSteps'
 import { CheckTable } from '@/components/concrete/results/CheckTable'
 import { StatusBadge } from '@/components/concrete/results/StatusBadge'
+import { CODE_SHORT } from '@/engine/concrete/codes/designCode'
 import { METHOD_TH, analyzeColumn } from '@/engine/concrete/column/analyzeColumn'
 import { addColumnBar } from '@/engine/concrete/column/layoutOps'
 import { validateColumnInput } from '@/engine/concrete/column/validate'
@@ -64,8 +65,10 @@ export function ConcreteColumnResultView() {
                 ρg <b>{fmt(analysis.rho * 100)}</b> %
               </span>
               <span>
-                Lu/r <b>{fmt(Math.max(analysis.slender.x.ratio, analysis.slender.y.ratio), 1)}</b>
-                {analysis.R < 1 ? <> (เสายาว R <b>{fmt(analysis.R, 3)}</b>)</> : ' (เสาสั้น)'}
+                {analysis.code === 'aci' ? 'kLu/r' : 'Lu/r'} <b>{fmt(Math.max(analysis.slender.x.ratio, analysis.slender.y.ratio), 1)}</b>
+                {analysis.code === 'aci'
+                  ? analysis.delta > 1 ? <> (เสายาว δ <b>{Number.isFinite(analysis.delta) ? fmt(analysis.delta, 2) : '∞'}</b>)</> : ' (เสาสั้น)'
+                  : analysis.R < 1 ? <> (เสายาว R <b>{fmt(analysis.R, 3)}</b>)</> : ' (เสาสั้น)'}
               </span>
             </div>
           </div>
@@ -148,11 +151,13 @@ export function ConcreteColumnResultView() {
             </section>
 
             <section className="card">
-              <h2 className="card-title">แผนภาพ P–M (กำลังยอมให้ วสท.)</h2>
+              <h2 className="card-title">แผนภาพ P–M (กำลังยอมให้ {CODE_SHORT[analysis.code]})</h2>
               <InteractionChart analysis={analysis} P={input.P} />
               <p className="hint">
-                {analysis.R < 1 ? 'เส้นกำลังคูณตัวคูณลดกำลังเสายาว R แล้ว' : 'เสาสั้น ไม่ลดกำลัง'}
-                {analysis.method === 'contour'
+                {analysis.code === 'aci'
+                  ? analysis.delta > 1 ? 'จุดแรงใช้งานใช้โมเมนต์ที่ขยายด้วย δ แล้ว' : 'เสาสั้น ไม่ขยายโมเมนต์'
+                  : analysis.R < 1 ? 'เส้นกำลังคูณตัวคูณลดกำลังเสายาว R แล้ว' : 'เสาสั้น ไม่ลดกำลัง'}
+                {analysis.method === 'contour' || analysis.method === 'bresler'
                   ? ` — แรงสองแกนตรวจด้วยวิธี ${METHOD_TH[analysis.method]}`
                   : ''}
               </p>

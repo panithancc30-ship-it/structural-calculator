@@ -1,11 +1,11 @@
 import type { ColumnAnalysis } from '@/engine/concrete/column/analyzeColumn';
-import type { InteractionCurve } from '@/engine/concrete/column/interaction';
+import type { PMCurve } from '@/engine/concrete/column/interaction';
 import { DRAWING_FONT } from '../drawing/drawingModel';
 
 interface Series {
   key: string;
   name: string;
-  curve: InteractionCurve;
+  curve: PMCurve;
   /** kg·cm */
   M: number;
   color: string;
@@ -27,7 +27,7 @@ function axis(maxValue: number) {
 
 const label = (v: number) => (Number.isInteger(v) ? String(v) : String(Number(v.toFixed(2))));
 
-/** เส้นกำลังยอมให้ P–M ตาม วสท. พร้อมจุดแรงใช้งาน — หน่วย ตัน, t·m */
+/** เส้นกำลังยอมให้ P–M ตามมาตรฐานที่เลือก พร้อมจุดแรงใช้งาน — หน่วย ตัน, t·m */
 export function InteractionChart({ analysis, P }: { analysis: ColumnAnalysis; P: number }) {
   const finite = (v: number) => (Number.isFinite(v) ? v : 0);
   const series: Series[] = analysis.spiral

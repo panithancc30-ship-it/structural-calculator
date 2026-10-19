@@ -1,3 +1,4 @@
+import type { DesignCode } from '../codes/designCode';
 import type { FootingLayout } from '../footing/types';
 import type { BarName } from '../rebar';
 
@@ -63,6 +64,9 @@ export interface PileCapInput {
   /** ความลึกจากผิวดินถึงท้องฐานราก (ม.) */
   Df: number;
   gammaSoil: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

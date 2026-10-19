@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_COLUMN as KC, ACI318_WSD_FOOTING as KF, ACI318_WSD_PILECAP as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { asMinRatio } from '../footing/analyzeFooting';
 import type { Pt } from '../footing/polygon';
 import { cmToM } from '../format';
@@ -39,7 +40,7 @@ export interface CageAnalysis extends PileCapCage {
   depthAbovePile: number;
 }
 
-type CageInput = Pick<PileCapInput, 'cover' | 'fy' | 'embedSingle'>;
+type CageInput = Pick<PileCapInput, 'cover' | 'fy' | 'embedSingle' | 'code'>;
 
 /** จำนวนเหล็กยืน → เส้นต่อด้าน (ปัดเป็นทวีคูณของ 4 ในช่วงที่รองรับ) */
 export function cageBarCount(cage: Pick<PileCapCage, 'count'>): number {
@@ -67,14 +68,14 @@ export function analyzeCage(input: CageInput, dims: PileCapDims, cage: PileCapCa
   for (let i = 0; i < perSide - 1; i++) bars.push({ x: -at(ax, i), y: ay });
   for (let i = 0; i < perSide - 1; i++) bars.push({ x: -ax, y: -at(ay, i) });
   const ties = count > 4 ? 2 : 1;
-  const rho = asMinRatio(input.fy);
+  const rho = asMinRatio(input.fy, codeOf(input));
   // ปลอกอยู่ระหว่างขาล่างของเหล็กยืน (ท้องฐาน) กับขอฉากที่ผิวบน เรียงเท่ากันกึ่งกลางความหนา
   const z1 = input.cover + db + dt / 2;
   const z2 = t - input.cover - db - dt / 2;
   const layers = z2 > z1 ? Math.floor((z2 - z1) / cage.tieSpacing + 1e-9) + 1 : 1;
   const start = (z1 + z2) / 2 - ((layers - 1) * cage.tieSpacing) / 2;
   const tieZ = Array.from({ length: layers }, (_, i) => start + i * cage.tieSpacing);
-  const rhoTie = asMinRatio(tieFy(cage.tie, input.fy));
+  const rhoTie = asMinRatio(tieFy(cage.tie, input.fy), codeOf(input));
   return {
     ...cage,
     count,

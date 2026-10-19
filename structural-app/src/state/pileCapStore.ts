@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ACI318_WSD_PILECAP as K } from '@/engine/concrete/codes/aci318Wsd';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import { autoPileCapLayout, pileCapDesign } from '@/engine/concrete/pilecap/designPileCap';
 import type { PileCapInput, PileCapLayout, PileOffset } from '@/engine/concrete/pilecap/types';
 import { AUTO_MODES, PILE_SHAPES, validatePileCapInput } from '@/engine/concrete/pilecap/validate';
@@ -35,6 +36,7 @@ export const DEFAULT_PILECAP: PileCapInput = {
   sand: 5,
   Df: 1.5,
   gammaSoil: 1.8,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   P: 60000,
@@ -105,6 +107,7 @@ export function parsePileCapProject(data: unknown): PileCapProjectFile | string 
     input.offsets = offsets;
   }
   if (!isBarName(input.bar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
   const enumOk = (list: readonly string[], v: unknown) => list.includes(v as string);
   if (
     !enumOk(PILE_SHAPES, input.pileShape) ||

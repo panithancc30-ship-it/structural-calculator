@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import { autoFootingLayout, footingDims } from '@/engine/concrete/footing/designFooting';
 import type { FootingInput, FootingLayout } from '@/engine/concrete/footing/types';
 import { CORNER_SIDES, EDGE_SIDES, POSITIONS, SIZE_MODES, validateFootingInput } from '@/engine/concrete/footing/validate';
@@ -22,6 +23,7 @@ export const DEFAULT_FOOTING: FootingInput = {
   Df: 1.5,
   qa: 15,
   gammaSoil: 1.8,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   P: 40000,
@@ -69,6 +71,7 @@ export function parseFootingProject(data: unknown): FootingProjectFile | string 
     }
   }
   if (!isBarName(input.bar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
   const enumOk = (list: readonly string[], v: unknown) => list.includes(v as string);
   if (
     !enumOk(POSITIONS, input.position) || !enumOk(EDGE_SIDES, input.edgeSide) ||

@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_SLAB as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { wsdParams, type WsdParams } from '../design/flexure';
 import { worstStatus } from '../design/sectionCheck';
 import { asMinRatio, DIR_TH } from '../footing/analyzeFooting';
@@ -106,7 +107,7 @@ function faceDemand(
   const d = geom.d[face][dir];
   const db = geom.db[face][dir];
   // As ต่ำสุดของพื้นคือเหล็กกันร้าว/อุณหภูมิคิดเต็มความหนา (7.12) ไม่ใช่ 14bd/fy ของคาน
-  const AsMin = asMinRatio(input.fy) * STRIP * t;
+  const AsMin = asMinRatio(input.fy, codeOf(input)) * STRIP * t;
   const AsFlex = d > 0 ? Mdesign / (p.fsAllow * p.j * d) : Infinity;
   const AsReq = Math.max(AsFlex, AsMin);
   const AsProv = run ? (STRIP / run.spacing) * REBARS[run.size].area : 0;
@@ -239,6 +240,14 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
     { label: 'h ขั้นต่ำ', formula: hMin.label, value: `${fmt(hMin.required, 1)} ซม.`, print: true },
   ];
 
+  if (loads.splitRatio !== null) {
+    steps.push({
+      label: 'แบ่งน้ำหนักสองทาง',
+      formula: 'wx = w·ly⁴/(lx⁴+ly⁴) (Rankine–Grashof)',
+      value: `wx ${fmt(loads.share.x, 0)}, wy ${fmt(loads.share.y, 0)} กก./ตร.ม.`,
+      print: true,
+    });
+  }
   if (loads.twoWay) {
     const disc = loads.twoWay.caseNo - 1;
     steps.push({

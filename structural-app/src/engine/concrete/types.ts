@@ -1,3 +1,4 @@
+import type { DesignCode } from './codes/designCode';
 import type { BarName } from './rebar';
 
 export type SectionKey = 'A' | 'B';
@@ -17,6 +18,9 @@ export interface BeamInput {
   h: number;
   L: number;
   cover: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

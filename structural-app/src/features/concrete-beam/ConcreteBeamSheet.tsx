@@ -1,7 +1,7 @@
 import { SectionDrawing } from '@/components/concrete/drawing/SectionDrawing'
 import { pickScale } from '@/components/concrete/drawing/drawingModel'
 import { SECTION_TITLES, SUPPORT_TH } from '@/components/concrete/labels'
-import { ACI318_WSD } from '@/engine/concrete/codes/aci318Wsd'
+import { codeLabel, codeOf } from '@/engine/concrete/codes/designCode'
 import { analyzeBeam, type BeamAnalysis } from '@/engine/concrete/design/designBeam'
 import { worstStatus } from '@/engine/concrete/design/sectionCheck'
 import { fmt } from '@/engine/concrete/format'
@@ -105,7 +105,7 @@ export function ConcreteBeamSheet({ project, title, input, remarks, pageNumber, 
       project={project}
       title={title}
       docTitle="คานคอนกรีตเสริมเหล็ก"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(file.input))}`}
       inputRows={inputRows}
       figureTitle="หน้าตัดและการเสริมเหล็ก"
       figures={figures}

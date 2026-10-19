@@ -3,7 +3,7 @@ import { InteractionChart } from '@/components/concrete/column/InteractionChart'
 import { pickColumnScale } from '@/components/concrete/column/columnDrawingModel'
 import { METHOD_TH, analyzeColumn, type ColumnAnalysis } from '@/engine/concrete/column/analyzeColumn'
 import { validateColumnInput } from '@/engine/concrete/column/validate'
-import { ACI318_WSD_COLUMN } from '@/engine/concrete/codes/aci318Wsd'
+import { CODE_SHORT, codeLabel, codeOf, type DesignCode } from '@/engine/concrete/codes/designCode'
 import { fmt } from '@/engine/concrete/format'
 import { ConcreteSheetLayout, type InputRow } from '@/features/concrete/ConcreteSheetLayout'
 import { COLUMN_BOX } from '@/features/concrete/reportScale'
@@ -12,11 +12,18 @@ import type { SheetRenderProps } from '@/features/registry'
 import { parseColumnProject, type ColumnProjectFile } from '@/state/columnStore'
 import { columnTitles } from './concreteColumnDefaults'
 
-const NOTES = [
-  'หน่วย kg, cm, ksc — มาตรฐาน วสท. วิธีหน่วยแรงใช้งาน: แรงอัดตามแนวแกน 0.85Ag(0.25f′c + fs·ρg), fs = 0.4fy ≤ 2,100 ksc',
-  'แรงอัดร่วมดัด: อัดควบคุม fa/Fa + fb/Fb ≤ 1, ดึงควบคุมเส้นตรงจาก Mo ถึงจุดสมดุล (Nb, Mb)',
-  'เสายาวคูณกำลังยอมให้ด้วย R = 1.32 − 0.006·Lu/r ≤ 1.0 (เสาที่มีคานและพื้นยึดไม่ให้เซ)',
-]
+const NOTES: Record<DesignCode, string[]> = {
+  eit: [
+    'หน่วย kg, cm, ksc — มาตรฐาน วสท. วิธีหน่วยแรงใช้งาน: แรงอัดตามแนวแกน 0.85Ag(0.25f′c + fs·ρg), fs = 0.4fy ≤ 2,100 ksc',
+    'แรงอัดร่วมดัด: อัดควบคุม fa/Fa + fb/Fb ≤ 1, ดึงควบคุมเส้นตรงจาก Mo ถึงจุดสมดุล (Nb, Mb)',
+    'เสายาวคูณกำลังยอมให้ด้วย R = 1.32 − 0.006·Lu/r ≤ 1.0 (เสาที่มีคานและพื้นยึดไม่ให้เซ)',
+  ],
+  aci: [
+    'หน่วย kg, cm, ksc — ACI 318-89 Appendix A.6: กำลังยอมให้ = 0.4 × กำลังตาม Chapter 10 รวม φ (0.70 ปลอกเดี่ยว, 0.75 ปลอกเกลียว), Pn,max = 0.80Po / 0.85Po',
+    'ผลความชะลูด moment magnifier (10.10–10.11) ใช้ 2.5P แทน Pu, k = 1, M1/M2 = 1, βd = 0.6, M ≥ P(1.5 + 0.03h)',
+    'ดัดสองแกน: Bresler เมื่อ Pn ≥ 0.1f′cAg, ต่ำกว่านั้น Mx/Mcx + My/Mcy ≤ 1',
+  ],
+}
 
 interface Analyzed {
   file: ColumnProjectFile
@@ -108,7 +115,7 @@ export function ConcreteColumnSheet({ project, title, input, remarks, pageNumber
       </figure>
       <figure>
         <InteractionChart analysis={analysis} P={col.P} />
-        <figcaption>แผนภาพ P–M กำลังยอมให้ (วสท.) และจุดแรงใช้งาน</figcaption>
+        <figcaption>แผนภาพ P–M กำลังยอมให้ ({CODE_SHORT[codeOf(col)]}) และจุดแรงใช้งาน</figcaption>
       </figure>
     </>
   )
@@ -118,14 +125,14 @@ export function ConcreteColumnSheet({ project, title, input, remarks, pageNumber
       project={project}
       title={title}
       docTitle="เสาคอนกรีตเสริมเหล็ก"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD_COLUMN.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(col))}`}
       inputRows={inputRows}
       figureTitle="หน้าตัดเสา และแผนภาพ P–M"
       figures={figures}
       checks={analysis.checks}
       steps={analysis.steps.filter((s) => s.print)}
       status={analysis.status}
-      notes={NOTES}
+      notes={NOTES[codeOf(col)]}
       remarks={remarks}
       pageNumber={pageNumber}
       totalPages={totalPages}

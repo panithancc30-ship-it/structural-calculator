@@ -4,9 +4,9 @@ import { ALL_BAR_SIZES, STEEL_GRADES } from '@/engine/concrete/rebar';
 import type { EdgeSupport, GroundUsage, SizeMode, SlabDims, SlabInput, SlabType } from '@/engine/concrete/slab/types';
 import { slabWarnings } from '@/engine/concrete/slab/validate';
 import { useSlabStore } from '@/state/slabStore';
-import { BarSelect, NumberField, Segmented, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 
-type NumericKey = { [P in keyof SlabInput]: SlabInput[P] extends number ? P : never }[keyof SlabInput];
+type NumericKey = { [P in keyof SlabInput]-?: SlabInput[P] extends number ? P : never }[keyof SlabInput];
 
 const SLAB_TYPE_OPTIONS: { value: SlabType; label: string }[] = [
   { value: 'oneWay', label: 'ทางเดียว' },
@@ -59,6 +59,7 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>ชนิดพื้น</legend>
         <div className="grid2">

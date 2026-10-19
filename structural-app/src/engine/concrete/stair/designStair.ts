@@ -1,4 +1,5 @@
 import { ACI318_WSD_SLAB as KS, ACI318_WSD_STAIR as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { wsdParams } from '../design/flexure';
 import { asMinRatio } from '../footing/analyzeFooting';
 import { REBARS } from '../rebar';
@@ -65,7 +66,7 @@ export function autoStairLayout(input: StairInput, dims: StairDims): StairLayout
   const { t } = dims;
   const p = wsdParams(input.fc, input.fy, input.fy);
   const { moments } = demandAt(input, t);
-  const AsTemp = asMinRatio(input.fy) * STRIP * t;
+  const AsTemp = asMinRatio(input.fy, codeOf(input)) * STRIP * t;
   const main = candidatesFrom(input.bar);
   const temp = candidatesFrom(input.tempBar);
   const sMain = Math.min(KS.maxSpacingFactor * t, KS.maxSpacing);

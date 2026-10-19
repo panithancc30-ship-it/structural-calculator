@@ -89,6 +89,15 @@ export function ConcreteSlabResultView() {
             </div>
           )}
 
+          {analysis.loads.splitRatio !== null && (
+            <div className="note info">
+              <span>
+                พื้นสองทาง ACI แบ่งน้ำหนักด้วย Rankine–Grashof — แถบทิศ X รับ {fmt(analysis.loads.splitRatio * 100, 0)}% ทิศ Y รับ{' '}
+                {fmt((1 - analysis.loads.splitRatio) * 100, 0)}% แล้วคิดแต่ละทิศเป็นพื้นทางเดียว
+              </span>
+            </div>
+          )}
+
           {edited && (
             <div className="note info">
               <span>เหล็กเสริมแก้ไขเอง — เมื่อเปลี่ยนข้อมูลนำเข้า โปรแกรมจะตรวจสอบใหม่แต่ไม่จัดเหล็กใหม่ให้</span>

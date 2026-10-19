@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_TORSION as E } from '../codes/aci318Wsd';
+import { ACI_ADM, codeOf, type DesignCode } from '../codes/designCode';
 import type { BeamInput, TorsionMethod } from '../types';
 import type { WsdParams } from './flexure';
 
@@ -30,7 +31,12 @@ export interface ShearTorsionDemand {
   Ac: number;
 
   vExcess: number;
+  /** มาตรฐานที่ใช้ตรวจขนาดหน้าตัด */
+  code: DesignCode;
+  /** วสท.: v ≤ 1.32√f′c */
   vMax: number;
+  /** ACI: v − vc ≤ 1.16√f′c */
+  vExcessMax: number;
   shearSectionOk: boolean;
   vtMax: number;
   torsionSectionOk: boolean;
@@ -82,9 +88,15 @@ function common(input: BeamInput, d: number, stirrupDia: number) {
     sumX2y: x * x * y,
     Ac: x1 * y1,
     vcBase: C.vcCoef * sqrtFc,
+    code: codeOf(input),
     vMax: C.vMaxCoef * sqrtFc,
+    vExcessMax: ACI_ADM.vExcessMaxCoef * sqrtFc,
   };
 }
+
+/** ขนาดหน้าตัดพอรับแรงเฉือน — วสท. v ≤ 1.32√f′c, ACI v − vc ≤ 1.16√f′c */
+const shearSectionOk = (c: ReturnType<typeof common>, vc: number) =>
+  c.code === 'aci' ? c.v - vc <= c.vExcessMax : c.v <= c.vMax;
 
 /** ACI 318-83 — คอนกรีตรับแรงเฉือนและแรงบิดร่วมกันตามสมการปฏิสัมพันธ์ */
 function aciDemand(input: BeamInput, p: WsdParams, d: number, stirrupDia: number): ShearTorsionDemand {
@@ -130,7 +142,7 @@ function aciDemand(input: BeamInput, p: WsdParams, d: number, stirrupDia: number
     vc, vt, vtc, vtNeglectLimit, torsionNeglected,
     alphaT,
     vExcess,
-    shearSectionOk: v <= c.vMax,
+    shearSectionOk: shearSectionOk(c, vc),
     vtMax,
     torsionSectionOk: torsionNeglected || vt <= vtMax,
     vCombinedMax: null,
@@ -172,7 +184,7 @@ function eitDemand(input: BeamInput, p: WsdParams, d: number, stirrupDia: number
     vc, vt, vtc: 0, vtNeglectLimit, torsionNeglected,
     alphaT: 1,
     vExcess,
-    shearSectionOk: v <= c.vMax,
+    shearSectionOk: shearSectionOk(c, vc),
     vtMax,
     torsionSectionOk: vt <= vtMax,
     vCombinedMax,

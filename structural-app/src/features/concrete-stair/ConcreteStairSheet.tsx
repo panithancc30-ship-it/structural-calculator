@@ -1,6 +1,6 @@
 import { StairSection } from '@/components/concrete/stair/StairDrawing'
 import { END_TH, pickStairScale, stairRunText } from '@/components/concrete/stair/stairDrawingModel'
-import { ACI318_WSD_STAIR } from '@/engine/concrete/codes/aci318Wsd'
+import { codeLabel, codeOf } from '@/engine/concrete/codes/designCode'
 import { fmt } from '@/engine/concrete/format'
 import { analyzeStair, USAGE_TH, type StairAnalysis } from '@/engine/concrete/stair/analyzeStair'
 import { stairDims } from '@/engine/concrete/stair/designStair'
@@ -102,7 +102,7 @@ export function ConcreteStairSheet({ project, title, input, remarks, pageNumber,
       project={project}
       title={title}
       docTitle="บันไดคอนกรีตเสริมเหล็ก"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD_STAIR.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(stair), 'บันไดท้องเรียบ')}`}
       inputRows={inputRows}
       figureTitle="รูปตัดบันได"
       figures={figures}

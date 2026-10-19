@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import { designLedge, type LedgeLayouts } from '@/engine/concrete/ledge/analyzeLedge';
 import { LEDGE_SUPPORTS, type LedgeBeamInput } from '@/engine/concrete/ledge/types';
 import { validateLedgeInput } from '@/engine/concrete/ledge/validate';
@@ -28,6 +29,7 @@ export const DEFAULT_LEDGE: LedgeBeamInput = {
   L: 4,
   support: 'simple',
   cover: 3,
+  code: 'eit',
   fc: 240,
   fy: 4000,
   fyv: 2400,
@@ -71,6 +73,7 @@ export function parseLedgeProject(data: unknown): LedgeProjectFile | string {
     }
   }
   if (!isBarName(input.mainBar) || !isBarName(input.stirrupBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
+  if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
   if (!LEDGE_SUPPORTS.includes(input.support as LedgeBeamInput['support']) || !STIRRUP_MODES.includes(input.stirrupMode as string)) {
     return 'สภาพรองรับหรือรูปแบบเหล็กปลอกในไฟล์ไม่ถูกต้อง';
   }

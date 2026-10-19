@@ -3,7 +3,7 @@ import { isBarName, REBARS } from '../rebar';
 import { edgesOf } from './geometry';
 import type { SlabInput } from './types';
 
-type NumericKey = { [P in keyof SlabInput]: SlabInput[P] extends number ? P : never }[keyof SlabInput];
+type NumericKey = { [P in keyof SlabInput]-?: SlabInput[P] extends number ? P : never }[keyof SlabInput];
 type Range = [NumericKey, [number, number, string]];
 
 export const SLAB_TYPES = ['oneWay', 'twoWay', 'cantilever', 'onGround'] as const;

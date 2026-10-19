@@ -4,7 +4,7 @@ import type { LedgeBeamInput, LedgeSupport } from '@/engine/concrete/ledge/types
 import { MAIN_BAR_SIZES, STEEL_GRADES, STIRRUP_BAR_SIZES } from '@/engine/concrete/rebar';
 import type { StirrupMode } from '@/engine/concrete/types';
 import { useLedgeStore } from '@/state/ledgeStore';
-import { BarSelect, NumberField, Segmented, SteelField } from '../form/Fields';
+import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 import { SUPPORT_TH } from '../labels';
 import { LedgeSketch } from './LedgeSketch';
 
@@ -33,6 +33,7 @@ export function LedgeInputPanel({ loads }: { loads: LedgeLoads | null }) {
 
   return (
     <div className="input-panel">
+      <CodeFieldset value={input.code} onChange={(code) => setInput({ code })} />
       <fieldset>
         <legend>พื้นยื่น</legend>
         <LedgeSketch input={input} />

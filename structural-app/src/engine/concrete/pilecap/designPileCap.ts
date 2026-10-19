@@ -1,4 +1,5 @@
 import { ACI318_WSD as C, ACI318_WSD_FOOTING as KF, ACI318_WSD_PILECAP as K } from '../codes/aci318Wsd';
+import { codeOf } from '../codes/designCode';
 import { wsdParams } from '../design/flexure';
 import { developmentLengths } from '../footing/analyzeFooting';
 import { footingGeometry, otherDir } from '../footing/geometry';
@@ -81,7 +82,7 @@ function layoutFor(input: PileCapInput, loads: PileCapLoads): PileCapLayout {
       fallback ??= set;
       const available = anchorageAvailable(loads, dir, demand.M, input.cover);
       if (available === null) return set;
-      const { ld, ldh } = developmentLengths(size, input.fc, input.fy, demand.AsFlex / (n * area));
+      const { ld, ldh } = developmentLengths(size, input.fc, input.fy, demand.AsFlex / (n * area), codeOf(input));
       if (available >= Math.min(ld, ldh) - 1e-9) return set;
     }
     return fallback ?? first!;

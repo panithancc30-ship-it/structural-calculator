@@ -5,7 +5,7 @@ import { analyzePileCap, type PileCapAnalysis } from '@/engine/concrete/pilecap/
 import { pileCapDesign } from '@/engine/concrete/pilecap/designPileCap'
 import type { PileCapInput } from '@/engine/concrete/pilecap/types'
 import { validatePileCapInput } from '@/engine/concrete/pilecap/validate'
-import { ACI318_WSD_PILECAP } from '@/engine/concrete/codes/aci318Wsd'
+import { codeLabel, codeOf } from '@/engine/concrete/codes/designCode'
 import { ConcreteSheetFallback } from '@/features/concrete/ConcreteSheetFallback'
 import { ConcreteSheetLayout, type InputRow } from '@/features/concrete/ConcreteSheetLayout'
 import { PILECAP_PLAN_BOX, PILECAP_SECTION_BOX } from '@/features/concrete/reportScale'
@@ -110,7 +110,7 @@ export function ConcretePileCapSheet({ project, title, input, remarks, pageNumbe
       project={project}
       title={title}
       docTitle="ฐานรากเสาเข็มคอนกรีตเสริมเหล็ก"
-      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${ACI318_WSD_PILECAP.label}`}
+      subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(cap), 'ฐานรากเสาเข็ม')}`}
       inputRows={inputRows}
       figureTitle="รูปตัด และแปลนฐานรากเสาเข็ม"
       figures={figures}

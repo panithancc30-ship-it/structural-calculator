@@ -1,3 +1,4 @@
+import type { DesignCode } from '../codes/designCode';
 import type { BarName } from '../rebar';
 import type { BarRun, SizeMode } from '../slab/types';
 
@@ -50,6 +51,9 @@ export interface StairInput {
   /** ความหนาท้องบันได (ตั้งฉากกับแนวลาด) ใช้เมื่อ thicknessMode = 'manual' */
   t: number;
   cover: number;
+
+  /** มาตรฐานที่ใช้ออกแบบ — ไม่ระบุ = วสท. */
+  code?: DesignCode;
 
   fc: number;
   fy: number;

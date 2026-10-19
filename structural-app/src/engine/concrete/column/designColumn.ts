@@ -4,7 +4,7 @@ import { REBARS, type BarName } from '../rebar';
 import type { Bar } from '../types';
 import { analyzeColumn } from './analyzeColumn';
 import { columnGeometry } from './geometry';
-import { spiralRequirement, tieRequirement } from './transverse';
+import { spiralRequirement, tieMinDia, tieRequirement } from './transverse';
 import type { CircleColumnLayout, ColumnInput, ColumnLayout, RectColumnLayout, TransverseSpec } from './types';
 
 const bars = (count: number, size: BarName): Bar[] => Array.from({ length: count }, () => ({ id: newId('c'), size }));
@@ -30,7 +30,7 @@ export function buildCircleLayout(n: number, input: ColumnInput, tie: Transverse
 }
 
 function transverseFor(input: ColumnInput): TransverseSpec {
-  const minDia = input.shape === 'circle' ? K.spiralMinDia : K.tieMinDia;
+  const minDia = input.shape === 'circle' ? K.spiralMinDia : tieMinDia(input);
   const size: BarName = REBARS[input.tieBar].dia + 1e-9 >= minDia ? input.tieBar : 'RB9';
   if (input.shape === 'circle') return { size, spacing: spiralRequirement(input, size).spacing };
   const probe = buildRectLayout(4, input, { size, spacing: 15 });

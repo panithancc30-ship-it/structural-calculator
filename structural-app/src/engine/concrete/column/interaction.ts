@@ -23,11 +23,15 @@ export interface PMPoint {
   P: number;
 }
 
-export interface InteractionCurve {
-  /** เส้นกำลังยอมให้หลังคูณ R แล้ว เรียงจาก (0, Mo) ถึง (Pmax, 0) */
+/** เส้นกำลังยอมให้ เรียงจาก P = 0 ถึง (Pmax, 0) — ใช้ร่วมกันทั้ง วสท. และ ACI */
+export interface PMCurve {
   points: PMPoint[];
-  /** R·Pa */
+  /** แรงอัดยอมให้สูงสุด */
   Pmax: number;
+}
+
+/** เส้นกำลังยอมให้ วสท. — points คูณ R แล้ว เรียงจาก (0, Mo) ถึง (Pmax = R·Pa, 0) */
+export interface InteractionCurve extends PMCurve {
   /** ตัวคูณลดกำลังเสายาว */
   R: number;
   /** ค่าต่อไปนี้ยังไม่คูณ R — ใช้แสดงขั้นตอนคำนวณ */
@@ -104,7 +108,7 @@ export function interactionCurve(
 }
 
 /** อัตราส่วนใช้งานตามรังสีจากจุดกำเนิดผ่านจุด (M, P) — ≤ 1 คือผ่าน */
-export function rayUtilization(curve: InteractionCurve, M: number, P: number): number {
+export function rayUtilization(curve: PMCurve, M: number, P: number): number {
   const m = Math.abs(M);
   if (m < 1e-9 && P < 1e-9) return 0;
   let lambda = Infinity;
@@ -123,7 +127,7 @@ export function rayUtilization(curve: InteractionCurve, M: number, P: number): n
 }
 
 /** กำลังรับโมเมนต์ที่ยอมให้ ณ แรงอัด P */
-export function momentCapacityAt(curve: InteractionCurve, P: number): number {
+export function momentCapacityAt(curve: PMCurve, P: number): number {
   if (P > curve.Pmax + 1e-9) return 0;
   let best = 0;
   const pts = curve.points;

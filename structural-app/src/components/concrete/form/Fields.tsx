@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CODE_SHORT, DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCode';
 import type { BarName, SteelGrade } from '@/engine/concrete/rebar';
 
 export interface NumberInputProps {
@@ -133,5 +134,21 @@ export function Segmented<T extends string | boolean>({
         ))}
       </div>
     </div>
+  );
+}
+
+/** แถวเลือกมาตรฐานการออกแบบ (วสท. / ACI) วางบนสุดของแผงกรอกข้อมูลงานคอนกรีตทุกชนิด */
+export function CodeFieldset({ value, onChange }: { value: DesignCode | undefined; onChange: (code: DesignCode) => void }) {
+  return (
+    <fieldset>
+      <div className="grid2">
+        <Segmented<DesignCode>
+          label="มาตรฐาน"
+          value={value ?? 'eit'}
+          options={DESIGN_CODES.map((c) => ({ value: c, label: CODE_SHORT[c] }))}
+          onChange={onChange}
+        />
+      </div>
+    </fieldset>
   );
 }
