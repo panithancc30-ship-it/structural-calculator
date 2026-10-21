@@ -1,7 +1,8 @@
 import { ACI318_WSD_SLAB as K } from '@/engine/concrete/codes/aci318Wsd';
 import { fmt } from '@/engine/concrete/format';
 import { ALL_BAR_SIZES, STEEL_GRADES } from '@/engine/concrete/rebar';
-import type { EdgeSupport, GroundUsage, SizeMode, SlabDims, SlabInput, SlabType } from '@/engine/concrete/slab/types';
+import { usesDetailS1 } from '@/engine/concrete/slab/detail';
+import type { EdgeSupport, GroundUsage, SizeMode, SlabDims, SlabInput, SlabLevel, SlabType } from '@/engine/concrete/slab/types';
 import { slabWarnings } from '@/engine/concrete/slab/validate';
 import { DEFAULT_SLAB, useSlabStore } from '@/state/slabStore';
 import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
@@ -18,6 +19,11 @@ const SLAB_TYPE_OPTIONS: { value: SlabType; label: string }[] = [
 const EDGE_OPTIONS: { value: EdgeSupport; label: string }[] = [
   { value: 'simple', label: 'ยึดหมุน' },
   { value: 'continuous', label: 'ต่อเนื่อง' },
+];
+
+const LEVEL_OPTIONS: { value: SlabLevel; label: string }[] = [
+  { value: 'general', label: 'พื้นทั่วไป' },
+  { value: 'dropped', label: 'พื้นลดระดับ' },
 ];
 
 const USAGE_OPTIONS: { value: GroundUsage; label: string }[] = [
@@ -38,16 +44,18 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
   const onGround = input.slabType === 'onGround';
   const cantilever = input.slabType === 'cantilever';
   const twoWay = input.slabType === 'twoWay';
+  const detail = usesDetailS1(input);
   const warnings = slabWarnings(input);
 
   /**
    * เปลี่ยนชนิดพื้นต้องปรับสภาพขอบและระยะหุ้มให้สมเหตุสมผลไปด้วย
    * พื้นวางบนดินเริ่มจากตะแกรง RB6 (SR24) ตามแบบขยายพื้น GS — ออกจากพื้นวางบนดินคืน fy ของพื้นทั่วไป
+   * พื้นหล่อในที่ใช้ Covering = 3.0 cm. ตามแบบขยายพื้น S1
    */
   const changeType = (slabType: SlabType) => {
     // กดปุ่มชนิดเดิมซ้ำต้องไม่ล้างเหล็กและ fy ที่ผู้ใช้เลือกไว้
     if (slabType === input.slabType) return;
-    const cover = slabType === 'onGround' ? K.coverOnGround : K.cover;
+    const cover = slabType === 'onGround' ? K.coverOnGround : K.detailCover;
     const material: Partial<SlabInput> =
       slabType === 'onGround'
         ? { tempBar: 'RB6', fy: STEEL_GRADES.find((g) => g.kind === 'RB')!.fy }
@@ -79,6 +87,17 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
           <div className="span2">
             <Segmented label="ชนิดพื้น" value={input.slabType} options={SLAB_TYPE_OPTIONS} onChange={changeType} grid />
           </div>
+          {detail && (
+            <>
+              <div className="span2">
+                <Segmented label="ระดับพื้น" value={input.level} options={LEVEL_OPTIONS} onChange={(level) => setInput({ level })} />
+              </div>
+              <p className="field-hint span2">
+                ออกแบบตามแบบขยายพื้น S1 — เหล็กล่างคอม้าเว้นเส้น งอขึ้นที่ L/5 และเหล็กเสริมพิเศษที่ขอบยื่น L/4 (L = ช่วงสั้น)
+                {input.level === 'dropped' && ' · พื้นลดระดับ: เหล็กบนงอลงฝังในคานทั้งสองข้าง'}
+              </p>
+            </>
+          )}
           {onGround && (
             <>
               <div className="span2">
@@ -227,14 +246,22 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
         <legend>เหล็กเสริม</legend>
         <div className="grid2">
           {!onGround && (
-            <BarSelect label="เหล็กหลัก" value={input.bar} sizes={ALL_BAR_SIZES} onChange={(bar) => setInput({ bar })} />
+            <BarSelect
+              label={detail ? 'คอม้าเว้นเส้น / เสริมพิเศษ' : 'เหล็กหลัก'}
+              value={input.bar}
+              sizes={ALL_BAR_SIZES}
+              onChange={(bar) => setInput({ bar })}
+            />
           )}
-          <BarSelect
-            label={onGround ? 'เหล็กตะแกรง (#)' : 'เหล็กกันร้าว'}
-            value={input.tempBar}
-            sizes={ALL_BAR_SIZES}
-            onChange={(tempBar) => setInput({ tempBar })}
-          />
+          {/* พื้นสองทางแบบ S1 ใช้คอม้าทั้งสองทิศ ไม่มีเหล็กกันร้าวแยก */}
+          {!twoWay && (
+            <BarSelect
+              label={onGround ? 'เหล็กตะแกรง (#)' : detail ? 'เหล็กกันร้าว (ทิศ Y)' : 'เหล็กกันร้าว'}
+              value={input.tempBar}
+              sizes={ALL_BAR_SIZES}
+              onChange={(tempBar) => setInput({ tempBar })}
+            />
+          )}
         </div>
       </fieldset>
 

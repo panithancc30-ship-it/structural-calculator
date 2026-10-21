@@ -7,6 +7,7 @@ import type { BarDir } from '../footing/types';
 import { cmToM, fmt } from '../format';
 import { REBARS } from '../rebar';
 import type { CalcStep, CheckItem, CheckStatus, Face, SupportCondition } from '../types';
+import { detailDepthLayout, slabDetail, topAtSupport, topSpacingAtSupport, usesDetailS1, type SlabDetail } from './detail';
 import { FACES, slabGeometry, supportConditionOf, type SlabGeometry } from './geometry';
 import { groundMeshMaxSpacing, groundSlab, type GroundSlab } from './ground';
 import { beamReaction, slabLoads, stripDemand, type SlabLoads, type StripMoments } from './loads';
@@ -88,6 +89,8 @@ export interface SlabAnalysis {
   y: SlabDirection;
   /** พื้นวางบนดิน: เหล็กตะแกรง (subgrade drag) และแรงดันใต้พื้น — null สำหรับพื้นชนิดอื่น */
   ground: GroundSlab | null;
+  /** พื้นทางเดียว/สองทาง: แบบขยายพื้น S1 (ทิศของรูป ระยะ L/4 และ L/5) — null สำหรับพื้นชนิดอื่น */
+  detail: SlabDetail | null;
   checks: CheckItem[];
   steps: CalcStep[];
   status: CheckStatus;
@@ -106,6 +109,7 @@ function faceDemand(
   dir: BarDir,
   Mdesign: number,
   ground: GroundSlab | null,
+  cranked: boolean,
 ): SlabFaceDemand {
   const run = layout[face][dir];
   const d = geom.d[face][dir];
@@ -115,8 +119,11 @@ function faceDemand(
   const AsMin = ground ? ground.AsReq[dir] : asMinRatio(input.fy, codeOf(input)) * STRIP * t;
   const AsFlex = d > 0 ? Mdesign / (p.fsAllow * p.j * d) : Infinity;
   const AsReq = Math.max(AsFlex, AsMin);
-  const AsProv = run ? (STRIP / run.spacing) * REBARS[run.size].area : 0;
-  const isMain = Mdesign > 0;
+  // แบบ S1: เหล็กบนที่ขอบ = คอม้าที่งอขึ้นเว้นเส้น + เสริมพิเศษ วางสลับกันที่ระยะเรียงเฉลี่ย
+  const atSupport = cranked && face === 'top';
+  const AsProv = atSupport ? topAtSupport(layout, dir) : run ? (STRIP / run.spacing) * REBARS[run.size].area : 0;
+  const spacing = atSupport ? topSpacingAtSupport(layout, dir) : run ? run.spacing : null;
+  const isMain = Mdesign > 0 || cranked;
   const sMax = ground
     ? groundMeshMaxSpacing(t)
     : Math.min((isMain ? K.maxSpacingFactor : K.tempSpacingFactor) * t, K.maxSpacing);
@@ -126,9 +133,9 @@ function faceDemand(
     isOuter: geom.isOuter[face][dir],
     Mc: p.R * STRIP * d * d,
     AsFlex, AsMin, AsReq, AsProv,
-    spacing: run ? run.spacing : null,
+    spacing,
     sMax,
-    clear: run ? run.spacing - db : 0,
+    clear: spacing !== null ? spacing - db : 0,
     clearReq: Math.max(db, C.minClearSpacing),
   };
 }
@@ -142,15 +149,17 @@ function directionOf(
   p: WsdParams,
   dir: BarDir,
   ground: GroundSlab | null,
+  detail: SlabDetail | null,
 ): SlabDirection {
   const { span, support, w, moments, V } = stripDemand(input, loads, dir);
   const dForShear = Math.max(geom.d.bottom[dir], geom.d.top[dir]);
   const vc = K.oneWayVcCoef * Math.sqrt(input.fc);
+  const cranked = !!detail?.cranked.includes(dir);
 
   return {
     dir, span, support, w, moments,
-    bottom: faceDemand(input, layout, geom, p, dims.t, 'bottom', dir, moments.pos, ground),
-    top: faceDemand(input, layout, geom, p, dims.t, 'top', dir, Math.max(moments.negEnd, moments.negInt), ground),
+    bottom: faceDemand(input, layout, geom, p, dims.t, 'bottom', dir, moments.pos, ground, cranked),
+    top: faceDemand(input, layout, geom, p, dims.t, 'top', dir, Math.max(moments.negEnd, moments.negInt), ground, cranked),
     V,
     v: dForShear > 0 ? V / (STRIP * dForShear) : Infinity,
     vc,
@@ -161,18 +170,22 @@ function directionOf(
 export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout): SlabAnalysis {
   const p = wsdParams(input.fc, input.fy, input.fy);
   const loads = slabLoads(input, dims.t);
-  const geom = slabGeometry(input.cover, dims.t, layout);
+  const detail = usesDetailS1(input) ? slabDetail(input, dims) : null;
+  const geom = slabGeometry(input.cover, dims.t, detail ? detailDepthLayout(input, layout) : layout);
   const hMin = minThickness(input, dims);
   const ground = input.slabType === 'onGround' ? groundSlab(input, loads, p.fsAllow) : null;
 
-  const x = directionOf(input, dims, loads, layout, geom, p, 'x', ground);
-  const y = directionOf(input, dims, loads, layout, geom, p, 'y', ground);
+  const x = directionOf(input, dims, loads, layout, geom, p, 'x', ground, detail);
+  const y = directionOf(input, dims, loads, layout, geom, p, 'y', ground, detail);
   const dirs = [x, y];
 
   if (ground) {
     const { checks, steps } = groundChecks(input, dims, layout, loads, hMin, ground, dirs);
-    return { input, dims, params: p, loads, geom, hMin, x, y, ground, checks, steps, status: worstStatus(checks) };
+    return { input, dims, params: p, loads, geom, hMin, x, y, ground, detail, checks, steps, status: worstStatus(checks) };
   }
+  const isCranked = (dir: BarDir) => !!detail?.cranked.includes(dir);
+  // แบบ S1 มีเหล็กบนเฉพาะทิศที่มีคอม้า — เหล็กบนทิศอื่น (ไฟล์เก่าที่แก้เอง) ไม่อยู่ในแบบ จึงไม่นำมาตรวจ
+  const inDetail = (dir: BarDir, face: Face) => !detail || face === 'bottom' || isCranked(dir);
 
   const checks: CheckItem[] = [];
   const push = (group: CheckItem['group'], label: string, required: string, provided: string, status: CheckStatus) =>
@@ -206,8 +219,10 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   for (const r of dirs) {
     for (const face of FACES) {
       const f = r[face];
-      if (!layout[face][r.dir] && f.Mdesign <= 0) continue;
-      push('flexure', `As ${DIR_TH[r.dir]} ผิว${FACE_TH[face]} (ซม.²/ม.)`, `≥ ${fmt(f.AsReq)}`, fmt(f.AsProv),
+      if (!inDetail(r.dir, face) || (!layout[face][r.dir] && f.Mdesign <= 0)) continue;
+      // แบบ S1: เหล็กบนที่ขอบไม่มีโมเมนต์ลบให้รับ (ขอบยึดหมุน) เป็นเหล็กตามแบบ ไม่ต้องตรวจปริมาณ
+      if (isCranked(r.dir) && face === 'top' && f.Mdesign <= 0) continue;
+      push('flexure', asLabel(r.dir, face, isCranked(r.dir), detail), `≥ ${fmt(f.AsReq)}`, fmt(f.AsProv),
         okIf(f.AsProv >= f.AsReq * (1 - 1e-6)));
     }
   }
@@ -220,7 +235,7 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   }
 
   // ---------- 4. การจัดเหล็ก ----------
-  const dMin = Math.min(...dirs.flatMap((r) => FACES.filter((f) => layout[f][r.dir]).map((f) => r[f].d)));
+  const dMin = Math.min(...dirs.flatMap((r) => FACES.filter((f) => layout[f][r.dir] && inDetail(r.dir, f)).map((f) => r[f].d)));
   if (Number.isFinite(dMin)) {
     push('detail', 'ความลึกประสิทธิผล d (ซม.)', `≥ ${fmt(K.minEffectiveDepth, 1)}`, fmt(dMin, 1),
       okIf(dMin >= K.minEffectiveDepth - 1e-9));
@@ -231,10 +246,11 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   for (const r of dirs) {
     for (const face of FACES) {
       const f = r[face];
-      if (f.spacing === null) continue;
-      push('detail', `ระยะเรียงเหล็ก${DIR_TH[r.dir]} ผิว${FACE_TH[face]} (ซม.)`, `≤ ${fmt(f.sMax, 1)}`, fmt(f.spacing, 1),
+      if (f.spacing === null || !inDetail(r.dir, face)) continue;
+      const where = isCranked(r.dir) && face === 'top' ? `${DIR_TH[r.dir]} ผิวบนที่ขอบ (เฉลี่ย)` : `${DIR_TH[r.dir]} ผิว${FACE_TH[face]}`;
+      push('detail', `ระยะเรียงเหล็ก${where} (ซม.)`, `≤ ${fmt(f.sMax, 1)}`, fmt(f.spacing, 1),
         okIf(f.spacing <= f.sMax + 1e-9));
-      push('detail', `ช่องว่างเหล็ก${DIR_TH[r.dir]} ผิว${FACE_TH[face]} (ซม.)`, `≥ ${fmt(f.clearReq, 1)}`, fmt(f.clear, 1),
+      push('detail', `ช่องว่างเหล็ก${where} (ซม.)`, `≥ ${fmt(f.clearReq, 1)}`, fmt(f.clear, 1),
         okIf(f.clear >= f.clearReq - 1e-9));
     }
   }
@@ -303,21 +319,76 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
     });
   }
 
-  for (const r of dirs) {
-    for (const face of FACES) {
-      const run = layout[face][r.dir];
-      if (!run) continue;
-      const f = r[face];
-      steps.push({
-        label: `เหล็ก${DIR_TH[r.dir]} ผิว${FACE_TH[face]}`,
-        formula: `As ต้องการ max(M/(fs·j·d), ρ·b·t) = ${fmt(f.AsReq)} ซม.²/ม.`,
-        value: `${run.size} @ ${cmToM(run.spacing)} (${fmt(f.AsProv)} ซม.²/ม.)`,
-        print: true,
-      });
+  if (detail) {
+    steps.push(...detailSteps(layout, detail, dirs));
+  } else {
+    for (const r of dirs) {
+      for (const face of FACES) {
+        const run = layout[face][r.dir];
+        if (!run) continue;
+        const f = r[face];
+        steps.push({
+          label: `เหล็ก${DIR_TH[r.dir]} ผิว${FACE_TH[face]}`,
+          formula: `As ต้องการ max(M/(fs·j·d), ρ·b·t) = ${fmt(f.AsReq)} ซม.²/ม.`,
+          value: `${run.size} @ ${cmToM(run.spacing)} (${fmt(f.AsProv)} ซม.²/ม.)`,
+          print: true,
+        });
+      }
     }
   }
 
-  return { input, dims, params: p, loads, geom, hMin, x, y, ground, checks, steps, status: worstStatus(checks) };
+  return { input, dims, params: p, loads, geom, hMin, x, y, ground, detail, checks, steps, status: worstStatus(checks) };
+}
+
+/** ชื่อรายการตรวจ As — แบบ S1 บอกว่าเป็นเหล็กชุดใดในแบบ */
+function asLabel(dir: BarDir, face: Face, cranked: boolean, detail: SlabDetail | null): string {
+  const unit = '(ซม.²/ม.)';
+  if (!detail) return `As ${DIR_TH[dir]} ผิว${FACE_TH[face]} ${unit}`;
+  if (!cranked) return `As ${DIR_TH[dir]} — เหล็กกันร้าว ${unit}`;
+  return face === 'bottom'
+    ? `As+ ${DIR_TH[dir]} กลางช่วง — คอม้าเว้นเส้น ${unit}`
+    : `As− ${DIR_TH[dir]} ที่ขอบ = คอม้า/2 + เสริมพิเศษ ${unit}`;
+}
+
+/** ขั้นตอนคำนวณเหล็กตามแบบขยายพื้น S1 */
+function detailSteps(layout: SlabLayout, detail: SlabDetail, dirs: SlabDirection[]): CalcStep[] {
+  const m = (cm: number) => fmt(cm / 100, 2);
+  const runText = (run: SlabLayout['top']['x']) => (run ? `${run.size} @ ${cmToM(run.spacing)}` : '—');
+  const steps: CalcStep[] = [
+    {
+      label: 'ระยะตัดเหล็ก (แบบ S1)',
+      formula: `เสริมพิเศษยื่น L/4, คอม้างอขึ้นที่ L/5 จากศูนย์กลางคาน (L = ช่วงสั้น ${m(detail.L)} ม.)`,
+      value: `L/4 = ${m(detail.cutoff)}, L/5 = ${m(detail.bend)} ม.`,
+      print: true,
+    },
+  ];
+  for (const r of dirs) {
+    const run = layout.bottom[r.dir];
+    if (!detail.cranked.includes(r.dir)) {
+      if (!run) continue;
+      steps.push({
+        label: `เหล็กกันร้าว${DIR_TH[r.dir]}`,
+        formula: `As ต้องการ ρ·b·t = ${fmt(r.bottom.AsReq)} ซม.²/ม.`,
+        value: `${runText(run)} (${fmt(r.bottom.AsProv)} ซม.²/ม.)`,
+        print: true,
+      });
+      continue;
+    }
+    steps.push({
+      label: `คอม้าเว้นเส้น${DIR_TH[r.dir]}`,
+      formula: `As+ ต้องการ max(M+/(fs·j·d), ρ·b·t) = ${fmt(r.bottom.AsReq)} ซม.²/ม.`,
+      value: `${runText(run)} (${fmt(r.bottom.AsProv)} ซม.²/ม.)`,
+      print: true,
+    });
+    const need = r.top.Mdesign > 0 ? `As− ต้องการ ${fmt(r.top.AsReq)} ซม.²/ม., ` : '';
+    steps.push({
+      label: `เหล็กบนที่ขอบ${DIR_TH[r.dir]}`,
+      formula: `${need}คอม้า/2 + เสริมพิเศษ ${runText(layout.top[r.dir])}`,
+      value: `${fmt(r.top.AsProv)} ซม.²/ม.`,
+      print: true,
+    });
+  }
+  return steps;
 }
 
 /**

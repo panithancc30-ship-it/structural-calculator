@@ -10,8 +10,18 @@ import {
   meshSummary,
   pickGroundScale,
 } from '@/components/concrete/slab/groundSlabDrawingModel'
+import { SlabDetailDrawing } from '@/components/concrete/slab/SlabDetailDrawing'
+import {
+  DETAIL_ROLES,
+  detailSummary,
+  LEVEL_SUFFIX,
+  pickDetailScale,
+  roleOf,
+  rolePick,
+  type DetailRole,
+} from '@/components/concrete/slab/slabDetailModel'
 import { SlabPlan, SlabSection } from '@/components/concrete/slab/SlabDrawings'
-import { SlabBarPopover, type ApplySlabEdit } from '@/components/concrete/slab/SlabPopover'
+import { SlabBarPopover, SlabDetailPopover, type ApplySlabEdit } from '@/components/concrete/slab/SlabPopover'
 import {
   dirSummary,
   pickKey,
@@ -51,6 +61,10 @@ export function ConcreteSlabResultView() {
     () => (analysis?.ground ? pickGroundScale(input, analysis, layout) : 20),
     [analysis, input, layout],
   )
+  const detailDenom = useMemo(
+    () => (analysis?.detail ? pickDetailScale(input, analysis, layout) : 20),
+    [analysis, input, layout],
+  )
   // สองรูปใช้มาตราส่วนเดียวกัน — ให้ความกว้างช่องเป็นสัดส่วนกับความกว้างรูปจริง รูปบนจอจึงขนาดเท่ากันด้วย
   const groundWidths = useMemo(
     () =>
@@ -64,6 +78,12 @@ export function ConcreteSlabResultView() {
   const selectedKey = pop.sel ? pickKey(pop.sel.pick.face, pop.sel.pick.dir) : null
   // พื้นวางบนดิน: แก้ตะแกรงสองทิศพร้อมกัน แสดงความต้องการของทิศที่ต้องการ As มากกว่า
   const meshDir = analysis && analysis.y.bottom.AsReq > analysis.x.bottom.AsReq ? 'y' : 'x'
+  // แบบ S1: ปุ่มเปิดเหล็กแต่ละชุด — ทิศตั้งฉากของพื้นสองทางเป็นคอม้าด้านยาว
+  const roleButton: Record<DetailRole, string> = {
+    extra: 'เสริมพิเศษ',
+    crank: 'คอม้าเว้นเส้น',
+    cross: input.slabType === 'twoWay' ? 'คอม้าด้านยาว' : 'เหล็กกันร้าว',
+  }
 
   return (
     <div className="rc-scope space-y-3.5">
@@ -91,7 +111,13 @@ export function ConcreteSlabResultView() {
               <span>
                 w ใช้งาน <b>{fmt(analysis.loads.w, 0)}</b> กก./ตร.ม.
               </span>
-              {analysis.ground ? (
+              {analysis.detail ? (
+                detailSummary(input, layout, analysis).map((item) => (
+                  <span key={item.label}>
+                    {item.label} <b>{item.text}</b>
+                  </span>
+                ))
+              ) : analysis.ground ? (
                 <>
                   <span>
                     ตะแกรง <b>{meshSummary(layout)}</b>
@@ -196,6 +222,61 @@ export function ConcreteSlabResultView() {
                 >
                   เหล็กตะแกรง…
                 </button>
+                {edited && (
+                  <button type="button" className="btn accent" onClick={redesign}>
+                    ↺ ออกแบบอัตโนมัติใหม่
+                  </button>
+                )}
+              </div>
+            </section>
+          ) : analysis.detail ? (
+            <section className="card section-card">
+              <header className="section-head">
+                <h2>
+                  แบบขยายพื้น {input.slabName || 'S1'}
+                  <small>
+                    {SLAB_TYPE_TH[input.slabType]} {LEVEL_SUFFIX[input.level]}
+                  </small>
+                </h2>
+                <StatusBadge status={analysis.status} />
+                {edited && <span className="tag">แก้ไขเอง</span>}
+              </header>
+              <div className="drawing-wrap" ref={pop.wrapRef}>
+                <SlabDetailDrawing
+                  input={input}
+                  analysis={analysis}
+                  layout={layout}
+                  denom={detailDenom}
+                  interactive
+                  selectedKey={selectedKey}
+                  onPick={(pick, e) => pop.openAt(pick, e.clientX, e.clientY)}
+                  onBackgroundClick={pop.close}
+                />
+                {pop.sel && suggested && (
+                  <div className="popover" style={pop.style} role="dialog" aria-label="แก้ไขเหล็กพื้น">
+                    <button type="button" className="popover-close" onClick={pop.close} aria-label="ปิด">
+                      ×
+                    </button>
+                    <SlabDetailPopover
+                      role={roleOf(pop.sel.pick.face, pop.sel.pick.dir, analysis)}
+                      analysis={analysis}
+                      layout={layout}
+                      suggested={suggested}
+                      apply={apply}
+                    />
+                  </div>
+                )}
+              </div>
+              <p className="hint">
+                คลิกที่เหล็กหรือป้ายเหล็ก เพื่อเปลี่ยนขนาดและระยะเรียง (กรอกระยะเรียงเป็นเมตรได้ เช่น 0.165) — เส้นคือเหล็กตามรูปตัด
+                จุดคือเหล็กทิศตั้งฉาก
+              </p>
+              <div className="toolbar">
+                {DETAIL_ROLES.map((role) => (
+                  <button key={role} type="button" className="btn" onClick={() => pop.openTopRight(rolePick(role, analysis))}>
+                    {roleButton[role]}…
+                  </button>
+                ))}
                 {edited && (
                   <button type="button" className="btn accent" onClick={redesign}>
                     ↺ ออกแบบอัตโนมัติใหม่

@@ -4,30 +4,32 @@ import type { BarDir } from '@/engine/concrete/footing/types';
 import { isBarName } from '@/engine/concrete/rebar';
 import { autoSlabLayout, slabDims } from '@/engine/concrete/slab/designSlab';
 import type { BarRun, SlabInput, SlabLayout } from '@/engine/concrete/slab/types';
-import { EDGE_SUPPORTS, GROUND_USAGES, SIZE_MODES, SLAB_TYPES, validateSlabInput } from '@/engine/concrete/slab/validate';
+import { EDGE_SUPPORTS, GROUND_USAGES, SIZE_MODES, SLAB_LEVELS, SLAB_TYPES, validateSlabInput } from '@/engine/concrete/slab/validate';
 import type { Face } from '@/engine/concrete/types';
 
 export const DEFAULT_SLAB: SlabInput = {
   slabName: 'S1',
   slabType: 'twoWay',
-  lx: 400,
-  ly: 500,
+  lx: 300,
+  ly: 400,
   edgeX1: 'continuous',
   edgeX2: 'continuous',
   edgeY1: 'continuous',
   edgeY2: 'continuous',
   thicknessMode: 'auto',
   t: 12,
-  cover: 2,
+  // แบบขยายพื้น S1: Covering = 3.0 cm. เหล็กกลม RB9 (คอม้า + เสริมพิเศษ) และ RB6 (เหล็กกันร้าว) ชั้นคุณภาพ SR24
+  cover: 3,
   code: 'eit',
   fc: 240,
-  fy: 4000,
+  fy: 2400,
   finishDL: 150,
   LL: 300,
+  level: 'general',
   usage: 'light',
   qa: 2,
-  bar: 'DB12',
-  tempBar: 'RB9',
+  bar: 'RB9',
+  tempBar: 'RB6',
 };
 
 function design(input: SlabInput, prev: SlabLayout | null, edited: boolean): SlabLayout {
@@ -86,18 +88,22 @@ export function parseSlabProject(data: unknown): SlabProjectFile | string {
     !enumOk(SLAB_TYPES, input.slabType) ||
     !enumOk(SIZE_MODES, input.thicknessMode) ||
     !enumOk(GROUND_USAGES, input.usage) ||
+    !enumOk(SLAB_LEVELS, input.level) ||
     !([input.edgeX1, input.edgeX2, input.edgeY1, input.edgeY2] as unknown[]).every((e) => enumOk(EDGE_SUPPORTS, e))
   ) {
     return 'ชนิดพื้นหรือสภาพขอบในไฟล์ไม่ถูกต้อง';
   }
   if (!isSlabLayout(root.layout)) return 'รูปแบบเหล็กเสริมในไฟล์ไม่ถูกต้อง';
 
+  // ไฟล์ที่ไม่ได้แก้เหล็กเองคือผลออกแบบอัตโนมัติ — ออกแบบใหม่ด้วยวิธีปัจจุบัน (เช่น ไฟล์ก่อนแบบขยายพื้น S1)
+  const edited = root.edited === true;
+  const parsed = input as unknown as SlabInput;
   return {
     app: 'rc-slab-wsd',
     version: 1,
-    input: input as unknown as SlabInput,
-    layout: root.layout,
-    edited: root.edited === true,
+    input: parsed,
+    layout: design(parsed, root.layout, edited),
+    edited,
   };
 }
 
@@ -119,7 +125,9 @@ export const useSlabStore = create<SlabState>()((set, get) => ({
   setInput: (patch) => {
     const { input, layout, edited } = get();
     const next = { ...input, ...patch };
-    set({ input: next, layout: design(next, layout, edited) });
+    // เปลี่ยนชนิดพื้นแล้วรูปแบบเหล็กเปลี่ยนทั้งชุด (คอม้า/เสริมพิเศษ ตะแกรง เหล็กบนพื้นยื่น) จึงออกแบบใหม่เสมอ
+    const keep = edited && next.slabType === input.slabType;
+    set({ input: next, layout: design(next, layout, keep), edited: keep });
   },
   editLayout: (fn) => set({ layout: fn(get().layout), edited: true }),
   redesign: () => set({ edited: false, layout: design(get().input, null, false) }),
