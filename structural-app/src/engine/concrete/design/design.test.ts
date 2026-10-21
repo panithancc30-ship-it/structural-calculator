@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BeamInput } from '../types';
 import { REBARS } from '../rebar';
-import { faceArea, makeLayer, removeBar, setBarSize } from '../layoutOps';
+import { ensureInnerAnchors, faceArea, makeLayer, removeBar, setBarSize, setStirrup } from '../layoutOps';
 import { computeGeometry } from './barLayout';
 import { analyzeBeam, autoLayoutDetailed, designBeam } from './designBeam';
 import { designFlexure, wsdParams } from './flexure';
@@ -177,5 +177,71 @@ describe('transformed section', () => {
     const j = 1 - k / 3;
     expect(r.fs).toBeCloseTo(M / (As * j * d), 1);
     expect(r.fc).toBeCloseTo((2 * M) / (k * j * b * d * d), 2);
+  });
+});
+
+describe('2 ปลอกแบบปลอกในรัดเหล็กชั้นที่ 2', () => {
+  // คาน 0.20 × 0.55 ตามแบบ: บน 3+2, ล่าง 3+2 DB20, 2ป RB9 @ 0.15
+  const input: BeamInput = { ...base, b: 20, h: 55, mainBar: 'DB20', stirrupMode: 'double', doubleStirrup: 'layer2' };
+  const layout = {
+    top: [makeLayer(3, 'DB20'), makeLayer(2, 'DB20')],
+    bottom: [makeLayer(3, 'DB20'), makeLayer(2, 'DB20')],
+    side: [],
+    stirrup: { size: 'RB9' as const, count: 2 as const, inner: 'layer2' as const, spacing: 15 },
+  };
+  const geom = computeGeometry(input, layout);
+  const ds = REBARS.RB9.dia;
+  const at = (face: 'top' | 'bottom', layer: number) => geom.bars.filter((b) => b.face === face && b.layer === layer);
+
+  it('ปลอกในกว้างเต็มคาน อยู่ในขาปลอกนอกพอดี', () => {
+    const inner = geom.inner!;
+    expect(inner.x).toBeCloseTo(geom.outer.x + ds, 8);
+    expect(inner.w).toBeCloseTo(geom.outer.w - 2 * ds, 8);
+    expect(geom.innerAnchorsOk).toBe(true);
+  });
+
+  it('เหล็กชั้นที่ 2 อยู่ที่มุมปลอกใน — ร่นเข้าหนึ่งขนาดปลอก และขาปลอกในผ่านช่องระหว่างชั้น', () => {
+    const inner = geom.inner!;
+    const [l, r] = at('top', 1);
+    expect(l.x).toBeCloseTo(inner.x + ds / 2 + l.dia / 2, 8);
+    expect(r.x).toBeCloseTo(inner.x + inner.w - ds / 2 - r.dia / 2, 8);
+    // ขาบนของปลอกในแตะเหล็กชั้นที่ 2 บน ขาล่างแตะเหล็กชั้นที่ 2 ล่าง
+    expect(inner.y + ds / 2).toBeCloseTo(l.y - l.dia / 2, 8);
+    const b2 = at('bottom', 1)[0];
+    expect(inner.y + inner.h - ds / 2).toBeCloseTo(b2.y + b2.dia / 2, 8);
+    // ช่องว่างระหว่างชั้นแรกกับชั้นที่ 2 = max(2.5, db) + ขาปลอกใน
+    const gap = l.y - l.dia / 2 - (at('top', 0)[0].y + at('top', 0)[0].dia / 2);
+    expect(gap).toBeCloseTo(Math.max(2.5, REBARS.DB20.dia) + ds, 8);
+  });
+
+  it('ไม่มีเหล็กชั้นที่ 2 → ตรวจเหล็กมุมไม่ผ่าน และ ensureInnerAnchors เติมให้ชั้นละ 2 เส้น', () => {
+    const bare = { ...layout, top: [makeLayer(3, 'DB20')], bottom: [makeLayer(3, 'DB20')] };
+    expect(computeGeometry(input, bare).innerAnchorsOk).toBe(false);
+    const r = analyzeBeam(input, { A: bare, B: bare });
+    expect(r.A.checks.some((c) => c.label.includes('เหล็กมุมปลอกใน (ชั้นที่ 2') && c.status === 'fail')).toBe(true);
+    const fixed = ensureInnerAnchors(bare, 'DB20');
+    expect(fixed.top.map((l) => l.bars.length)).toEqual([3, 2]);
+    expect(fixed.bottom.map((l) => l.bars.length)).toEqual([3, 2]);
+    expect(computeGeometry(input, fixed).innerAnchorsOk).toBe(true);
+  });
+
+  it('คิดเฉือนแบบ 4 ขาเหมือนปลอกในแคบ — d ลดลงเล็กน้อยเพราะขาปลอกในผ่านช่องระหว่างชั้น', () => {
+    const a = analyzeBeam(input, { A: layout, B: layout }).A;
+    expect(a.stirrupCap).toEqual(stirrupSpacing(a.shear, 'RB9', 2));
+    const narrow = setStirrup(layout, { inner: 'narrow' });
+    expect(a.dT).toBeLessThan(analyzeBeam(input, { A: narrow, B: narrow }).A.dT);
+  });
+
+  it('ออกแบบอัตโนมัติ: ทุกหน้าตัดมีชั้นที่ 2 บน/ล่าง ≥ 2 เส้น และผ่าน', () => {
+    const big = { ...input, b: 30, h: 60, M: 12000, V: 18000, T: 0 };
+    const layouts = designBeam(big);
+    for (const key of ['A', 'B'] as const) {
+      const lay = layouts[key];
+      expect(lay.stirrup).toMatchObject({ count: 2, inner: 'layer2' });
+      expect(lay.top[1]?.bars.length).toBeGreaterThanOrEqual(2);
+      expect(lay.bottom[1]?.bars.length).toBeGreaterThanOrEqual(2);
+    }
+    const r = analyzeBeam(big, layouts);
+    for (const sec of [r.A, r.B]) expect(sec.checks.filter((c) => c.status === 'fail')).toEqual([]);
   });
 });

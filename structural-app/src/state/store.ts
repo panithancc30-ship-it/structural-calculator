@@ -3,7 +3,7 @@ import { DESIGN_CODES, type DesignCode } from '@/engine/concrete/codes/designCod
 import { autoLayout } from '@/engine/concrete/design/designBeam';
 import { faceArea } from '@/engine/concrete/layoutOps';
 import { isBarName } from '@/engine/concrete/rebar';
-import type { BeamInput, SectionKey, SectionLayout } from '@/engine/concrete/types';
+import { DOUBLE_STIRRUP_TYPES, type BeamInput, type DoubleStirrupType, type SectionKey, type SectionLayout } from '@/engine/concrete/types';
 import { validateInput } from '@/engine/concrete/validate';
 
 export type Layouts = Record<SectionKey, SectionLayout>;
@@ -24,6 +24,7 @@ export const DEFAULT_INPUT: BeamInput = {
   mainBar: 'DB16',
   stirrupBar: 'RB9',
   stirrupMode: 'auto',
+  doubleStirrup: 'narrow',
   sMin: 10,
   support: 'bothEnds',
 };
@@ -71,6 +72,7 @@ export function isLayout(value: unknown): value is SectionLayout {
     !!st &&
     isBarName(st.size) &&
     (st.count === 1 || st.count === 2) &&
+    (st.inner === undefined || DOUBLE_STIRRUP_TYPES.includes(st.inner as DoubleStirrupType)) &&
     typeof st.spacing === 'number' &&
     st.spacing > 0
   );
@@ -90,6 +92,7 @@ export function parseProject(data: unknown): ProjectFile | string {
   }
   if (!isBarName(input.mainBar) || !isBarName(input.stirrupBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
   if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
+  if (!DOUBLE_STIRRUP_TYPES.includes(input.doubleStirrup as DoubleStirrupType)) return 'แบบ 2 ปลอกในไฟล์ไม่ถูกต้อง';
   const layouts = asObj(root.layouts);
   if (!layouts || !isLayout(layouts.A) || !isLayout(layouts.B)) return 'รูปแบบเหล็กเสริมในไฟล์ไม่ถูกต้อง';
   const edited = asObj(root.edited);

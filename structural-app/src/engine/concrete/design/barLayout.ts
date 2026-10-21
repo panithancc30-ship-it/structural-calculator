@@ -1,6 +1,6 @@
 import { ACI318_WSD as C } from '../codes/aci318Wsd';
 import { REBARS, type BarName } from '../rebar';
-import type { BarLayer, BeamInput, Face, SectionLayout, StirrupSpec } from '../types';
+import { innerTypeOf, type BarLayer, type BeamInput, type DoubleStirrupType, type Face, type SectionLayout, type StirrupSpec } from '../types';
 
 /** พิกัดทั้งหมดหน่วย ซม. จากมุมซ้ายบนของหน้าตัด (y ชี้ลง) */
 export interface PlacedBar {
@@ -41,7 +41,7 @@ export interface SectionGeometry {
   outer: StirrupGeom;
   inner: StirrupGeom | null;
   spacing: LayerSpacing[];
-  /** โหมด 2 ปลอก: ชั้นแรกบนและล่างมี ≥ 4 เส้นให้ปลอกในยึด */
+  /** โหมด 2 ปลอก: มีเหล็กมุมให้ปลอกในยึด — ปลอกในแคบใช้ชั้นแรก ≥ 4 เส้น, ปลอกในรัดชั้น 2 ใช้ชั้นที่ 2 ≥ 2 เส้น */
   innerAnchorsOk: boolean;
 }
 
@@ -55,9 +55,12 @@ export interface GeoBase {
   inY0: number;
   inY1: number;
   outer: StirrupGeom;
+  /** ปลอกในแคบ — ปลอกในรัดชั้น 2 ขึ้นกับตำแหน่งเหล็กชั้น 2 จึงคำนวณหลังวางเหล็ก (computeGeometry) */
   inner: StirrupGeom | null;
-  /** ตำแหน่ง x ของเหล็กมุมปลอกใน (โหมด 2 ปลอก) */
+  /** ตำแหน่ง x ของเหล็กมุมปลอกในแคบ */
   anchors: [number, number] | null;
+  /** แบบปลอกใน — null เมื่อเป็นปลอกเดี่ยว */
+  innerType: DoubleStirrupType | null;
 }
 
 export function geoBase(input: BeamInput, stirrup: StirrupSpec, refDia: number): GeoBase {
@@ -72,7 +75,8 @@ export function geoBase(input: BeamInput, stirrup: StirrupSpec, refDia: number):
 
   let anchors: [number, number] | null = null;
   let inner: StirrupGeom | null = null;
-  if (stirrup.count === 2) {
+  const innerType = stirrup.count === 2 ? innerTypeOf(stirrup) : null;
+  if (innerType === 'narrow') {
     // ปลอกในคร่อมเหล็กเส้นที่ 2 และ n−1 ของการเรียง 4 เส้นเท่ากัน
     const left = inX0 + refDia / 2;
     const right = inX1 - refDia / 2;
@@ -82,16 +86,20 @@ export function geoBase(input: BeamInput, stirrup: StirrupSpec, refDia: number):
     const ix1 = anchors[1] + refDia / 2 + ds / 2;
     inner = { x: ix0, y: outer.y, w: ix1 - ix0, h: outer.h, r, ds };
   }
-  return { b, h, ds, refDia, inX0, inX1, inY0, inY1, outer, inner, anchors };
+  return { b, h, ds, refDia, inX0, inX1, inY0, inY1, outer, inner, anchors, innerType };
 }
+
+/** ปลอกในรัดชั้น 2: เหล็กชั้นที่ 2 ขึ้นไปและเหล็กข้างอยู่ในขาปลอกใน จึงร่นเข้ามาอีกหนึ่งขนาดปลอก */
+const insetOf = (g: GeoBase, layerIndex: number) => (g.innerType === 'layer2' && layerIndex >= 1 ? g.ds : 0);
 
 /** ตำแหน่ง x ของเหล็กในชั้น — ปกติเรียงเท่ากัน; โหมด 2 ปลอก ชั้นแรกล็อกเหล็กที่มุมปลอกใน */
 export function layerXs(g: GeoBase, dias: number[], layerIndex: number): number[] {
   const n = dias.length;
   if (n === 0) return [];
   if (n === 1) return [g.b / 2];
-  const left = g.inX0 + dias[0] / 2;
-  const right = g.inX1 - dias[n - 1] / 2;
+  const inset = insetOf(g, layerIndex);
+  const left = g.inX0 + inset + dias[0] / 2;
+  const right = g.inX1 - inset - dias[n - 1] / 2;
   if (!g.anchors || layerIndex !== 0 || n < 4) {
     return dias.map((_, i) => left + ((right - left) * i) / (n - 1));
   }
@@ -192,7 +200,9 @@ export function computeGeometry(input: BeamInput, layout: SectionLayout): Sectio
       const dias = layer.bars.map((bar) => REBARS[bar.size].dia);
       const md = Math.max(0, ...dias);
       if (li > 0) {
-        const clr = Math.max(C.minClearSpacing, md, prevMax);
+        // ปลอกในรัดชั้น 2: ขาปลอกในพาดผ่านช่องระหว่างชั้นแรกกับชั้นที่ 2 จึงเว้นเพิ่มอีกหนึ่งขนาดปลอก
+        const leg = li === 1 && g.innerType === 'layer2' ? g.ds : 0;
+        const clr = Math.max(C.minClearSpacing, md, prevMax) + leg;
         edge = bottom ? edge - clr : edge + clr;
       }
       const xs = layerXs(g, dias, li);
@@ -232,15 +242,33 @@ export function computeGeometry(input: BeamInput, layout: SectionLayout): Sectio
     layout.side.forEach((row, j) => {
       const spec = REBARS[row.size];
       const y = yTop + ((yBot - yTop) * (j + 1)) / (rows + 1);
-      for (const [suffix, x] of [['L', g.inX0 + spec.dia / 2], ['R', g.inX1 - spec.dia / 2]] as const) {
+      const inset = insetOf(g, 1);
+      for (const [suffix, x] of [['L', g.inX0 + inset + spec.dia / 2], ['R', g.inX1 - inset - spec.dia / 2]] as const) {
         bars.push({ id: `${row.id}-${suffix}`, size: row.size, dia: spec.dia, area: spec.area, x, y, face: 'side', layer: j, layerId: row.id });
       }
     });
   }
 
+  const count = (face: Face, layer: number) => layout[face][layer]?.bars.length ?? 0;
   const innerAnchorsOk =
-    layout.stirrup.count === 1 ||
-    ((layout.top[0]?.bars.length ?? 0) >= 4 && (layout.bottom[0]?.bars.length ?? 0) >= 4);
+    g.innerType === null ||
+    (g.innerType === 'narrow'
+      ? count('top', 0) >= 4 && count('bottom', 0) >= 4
+      : count('top', 1) >= 2 && count('bottom', 1) >= 2);
 
-  return { bars, outer: g.outer, inner: g.inner, spacing, innerAnchorsOk };
+  return { bars, outer: g.outer, inner: g.innerType === 'layer2' ? layer2Inner(g, bars) : g.inner, spacing, innerAnchorsOk };
+}
+
+/**
+ * ปลอกในรัดชั้น 2: กว้างเต็มคาน (อยู่ในขาปลอกนอกพอดี) สูงจากเหล็กชั้นที่ 2 บนถึงชั้นที่ 2 ล่าง
+ * เหล็กชั้นที่ 2 อยู่ที่มุมปลอกใน — ด้านที่ไม่มีชั้น 2 ให้ปลอกในชิดปลอกนอก (ตรวจไม่ผ่านจาก innerAnchorsOk)
+ */
+function layer2Inner(g: GeoBase, bars: PlacedBar[]): StirrupGeom {
+  const second = (face: Face) => bars.filter((bar) => bar.face === face && bar.layer === 1);
+  const top = second('top');
+  const bottom = second('bottom');
+  const y0 = top.length ? Math.min(...top.map((bar) => bar.y - bar.dia / 2)) - g.ds / 2 : g.outer.y + g.ds;
+  const y1 = bottom.length ? Math.max(...bottom.map((bar) => bar.y + bar.dia / 2)) + g.ds / 2 : g.outer.y + g.outer.h - g.ds;
+  const cornerDia = Math.max(0, ...[...top, ...bottom].map((bar) => bar.dia)) || g.refDia;
+  return { x: g.outer.x + g.ds, y: y0, w: g.outer.w - 2 * g.ds, h: y1 - y0, r: cornerDia / 2 + g.ds / 2, ds: g.ds };
 }

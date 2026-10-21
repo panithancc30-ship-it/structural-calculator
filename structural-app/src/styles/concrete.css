@@ -99,6 +99,21 @@
   color: #fff;
 }
 
+/* แบบ 2 ปลอก: ปุ่มมีรูปย่อหน้าตัดอยู่เหนือชื่อ */
+.rc-scope .seg.stirrup-types button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 6px 4px;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.rc-scope .seg.stirrup-types button.active svg rect:first-child {
+  stroke: #fff;
+}
+
 .rc-scope .seg.dark {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.28);
@@ -796,4 +811,9 @@
   grid-template-columns: minmax(84px, max-content) minmax(0, 1fr);
   align-items: center;
   column-gap: 8px;
+}
+
+/* คำอธิบายใต้ปุ่มเต็มแถว — ถ้าอยู่ช่องป้ายชื่อ ข้อความยาวจะดันช่องป้ายจนปุ่มเหลือกว้าง 0 */
+.rc-scope .input-panel .field.span2:has(> .seg) > .field-hint {
+  grid-column: 1 / -1;
 }

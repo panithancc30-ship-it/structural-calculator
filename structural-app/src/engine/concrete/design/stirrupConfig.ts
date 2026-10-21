@@ -1,6 +1,6 @@
 import { ACI318_WSD as C } from '../codes/aci318Wsd';
 import { REBARS, STIRRUP_BAR_SIZES, type BarName } from '../rebar';
-import type { BeamInput, StirrupSpec } from '../types';
+import { innerTypeOf, type BeamInput, type StirrupSpec } from '../types';
 import { cmToM } from '../format';
 import type { ShearTorsionDemand } from './shearTorsion';
 
@@ -86,5 +86,10 @@ export function chooseStirrup(input: BeamInput, demandFor: (size: BarName) => Sh
     suggestion ??= 'เหล็กปลอกไม่พอ — ควรขยายขนาดหน้าตัดคาน';
   }
 
-  return { spec: { size, count, spacing: capacity.spacing }, capacity, constructible, suggestion };
+  // แบบปลอกในเก็บเฉพาะเมื่อใช้ 2 ปลอก — ปลอกเดียวคงรูปแบบเดิมของไฟล์
+  const spec: StirrupSpec =
+    count === 2
+      ? { size, count, inner: innerTypeOf({ inner: input.doubleStirrup }), spacing: capacity.spacing }
+      : { size, count, spacing: capacity.spacing };
+  return { spec, capacity, constructible, suggestion };
 }

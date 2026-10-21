@@ -1,7 +1,7 @@
 import { ACI318_WSD as C } from '../codes/aci318Wsd';
 import { REBARS } from '../rebar';
 import { fmt } from '../format';
-import type { BeamInput, CalcStep, CheckItem, CheckStatus, Face, SectionKey, SectionLayout } from '../types';
+import { innerTypeOf, type BeamInput, type CalcStep, type CheckItem, type CheckStatus, type Face, type SectionKey, type SectionLayout } from '../types';
 import { computeGeometry, type PlacedBar, type SectionGeometry } from './barLayout';
 import { designFlexure, wsdParams, type FlexureDesign, type WsdParams } from './flexure';
 import { distributeAl, shearTorsionDemand, type ShearTorsionDemand } from './shearTorsion';
@@ -192,8 +192,10 @@ export function analyzeSection(
       okIf(provided.AsSide + tol >= req.AsSide));
   }
   if (!geom.innerAnchorsOk) {
-    push('detail', 'เหล็กมุมปลอกใน (ชั้นแรก บน/ล่าง)', '≥ 4 เส้น',
-      `${layout.top[0]?.bars.length ?? 0} / ${layout.bottom[0]?.bars.length ?? 0}`, 'fail');
+    const layer2 = innerTypeOf(layout.stirrup) === 'layer2';
+    const li = layer2 ? 1 : 0;
+    push('detail', `เหล็กมุมปลอกใน (ชั้น${layer2 ? 'ที่ 2' : 'แรก'} บน/ล่าง)`, `≥ ${layer2 ? 2 : 4} เส้น`,
+      `${layout.top[li]?.bars.length ?? 0} / ${layout.bottom[li]?.bars.length ?? 0}`, 'fail');
   }
 
   const s = layout.stirrup.spacing;
