@@ -1,3 +1,5 @@
+import { GroundSlabDetail } from '@/components/concrete/slab/GroundSlabDrawings'
+import { GROUND_DETAILS, meshSummary, pickGroundScale } from '@/components/concrete/slab/groundSlabDrawingModel'
 import { SlabPlan, SlabSection } from '@/components/concrete/slab/SlabDrawings'
 import {
   dirSummary,
@@ -15,7 +17,7 @@ import type { SlabInput, SlabLayout } from '@/engine/concrete/slab/types'
 import { validateSlabInput } from '@/engine/concrete/slab/validate'
 import { ConcreteSheetFallback } from '@/features/concrete/ConcreteSheetFallback'
 import { ConcreteSheetLayout, type InputRow } from '@/features/concrete/ConcreteSheetLayout'
-import { SLAB_PLAN_BOX, SLAB_SECTION_BOX } from '@/features/concrete/reportScale'
+import { SLAB_GROUND_BOX, SLAB_PLAN_BOX, SLAB_SECTION_BOX } from '@/features/concrete/reportScale'
 import type { SheetRenderProps } from '@/features/registry'
 import { parseSlabProject } from '@/state/slabStore'
 
@@ -35,9 +37,14 @@ const TWO_WAY_NOTE_ACI =
   'พื้นสองทางแบ่งน้ำหนักด้วยวิธี Rankine–Grashof (wx = w·ly⁴/(lx⁴+ly⁴)) แล้วออกแบบแต่ละทิศเป็นแถบทางเดียวกว้าง 1 ม. ' +
   'ด้วยสัมประสิทธิ์โมเมนต์ ACI 8.3.3 — ยังไม่ได้ออกแบบเหล็กกันบิดที่มุมแผ่น'
 
-const ON_GROUND_NOTE =
-  'กำหนดความหนาตามการใช้งานและเสริมเหล็กกันร้าวเท่านั้น — ยังไม่ได้ตรวจน้ำหนักกระทำเป็นจุดหรือล้อรถ ' +
-  'ซึ่งต้องใช้ค่า modulus of subgrade reaction จากผลทดสอบดิน'
+const ON_GROUND_NOTES = [
+  'หน่วย kg, cm, ksc, t/m² — น้ำหนักบรรทุกเป็นแรงใช้งาน ไม่คูณตัวประกอบ',
+  'พื้นวางบนดินตามแบบขยายพื้น GS: แยกจากคานด้วยร่องยาแนว ห้ามฝังเหล็กเข้าคาน น้ำหนักทั้งหมดลงทรายรองพื้นโดยตรง ' +
+    'ความหนาขั้นต่ำตามการใช้งาน แรงดันใต้พื้น q = น้ำหนักคงที่ + จร ต้องไม่เกิน qa',
+  'เหล็กตะแกรงกันร้าวคิดด้วยสูตร subgrade drag As = F·L·W/(2fs) (F = 1.5, L = ความยาวแผ่นระหว่างรอยต่อ, ' +
+    'W = น้ำหนักตัวพื้น + ปูผิว) — ACI 318 ไม่ครอบคลุมพื้นวางบนดินที่ไม่ได้รับน้ำหนักจากโครงสร้างส่วนอื่น',
+  'ไม่ได้ตรวจน้ำหนักกระทำเป็นจุดหรือเป็นแนว (ล้อรถ ผนัง) ซึ่งต้องใช้ค่า modulus of subgrade reaction จากผลทดสอบดิน — ผนังให้วางบนคาน',
+]
 
 interface Analyzed {
   input: SlabInput
@@ -45,6 +52,8 @@ interface Analyzed {
   analysis: SlabAnalysis
   planDenom: number
   sectionDenom: number
+  /** มาตราส่วนแบบขยายพื้น GS (พื้นวางบนดิน) */
+  groundDenom: number
 }
 
 export function analyzeSlabSheet(value: unknown): Analyzed | null {
@@ -62,6 +71,7 @@ export function analyzeSlabSheet(value: unknown): Analyzed | null {
       analysis,
       planDenom: pickPlanScale(file.input, analysis, file.layout, SLAB_PLAN_BOX),
       sectionDenom: pickSectionScale(file.input, analysis, file.layout, SLAB_SECTION_BOX),
+      groundDenom: analysis.ground ? pickGroundScale(file.input, analysis, file.layout, SLAB_GROUND_BOX) : 20,
     }
   } catch {
     return null
@@ -75,17 +85,19 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
     return <ConcreteSheetFallback project={project} title={title} pageNumber={pageNumber} totalPages={totalPages} />
   }
 
-  const { input: slab, layout, analysis, planDenom, sectionDenom } = result
-  const { dims, loads, hMin } = analysis
+  const { input: slab, layout, analysis, planDenom, sectionDenom, groundDenom } = result
+  const { dims, loads, hMin, ground } = analysis
   const onGround = slab.slabType === 'onGround'
   const cantilever = slab.slabType === 'cantilever'
 
   const spanText = cantilever
     ? `ระยะยื่น ${m2(dims.lx)} ม. × กว้าง ${m2(dims.ly)} ม.`
-    : `lx × ly = ${m2(dims.lx)} × ${m2(dims.ly)} ม.`
+    : onGround
+      ? `แผ่นระหว่างรอยต่อ ${m2(dims.lx)} × ${m2(dims.ly)} ม.`
+      : `lx × ly = ${m2(dims.lx)} × ${m2(dims.ly)} ม.`
 
-  const edgeText = onGround
-    ? 'วางบนดินโดยตรง'
+  const edgeText = ground
+    ? `ทรายอัดแน่นบนดิน qa = ${fmt(ground.qa)} t/m²`
     : `ขอบ x: ${EDGE_TH[slab.edgeX1]}–${EDGE_TH[slab.edgeX2]}, ขอบ y: ${EDGE_TH[slab.edgeY1]}–${EDGE_TH[slab.edgeY2]}`
 
   const inputRows: InputRow[] = [
@@ -98,7 +110,7 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
       ],
     },
     {
-      label: 'ขอบรองรับ',
+      label: ground ? 'รองรับด้วย' : 'ขอบรองรับ',
       cells: [edgeText, `f′c = ${fmt(slab.fc, 0)} ksc`, `fy = ${fmt(slab.fy, 0)} ksc`],
     },
     {
@@ -109,17 +121,35 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
         `รวม w = ${fmt(loads.w, 0)} กก./ตร.ม.`,
       ],
     },
-    {
-      label: 'ผลออกแบบ',
-      cells: [
-        `h ขั้นต่ำ ${fmt(hMin.required, 1)} ซม. (${hMin.label})`,
-        `เหล็กทิศ X: ${dirSummary(layout, 'x')}`,
-        `เหล็กทิศ Y: ${dirSummary(layout, 'y')}`,
-      ],
-    },
+    ground
+      ? {
+          label: 'ผลออกแบบ',
+          cells: [
+            `h ขั้นต่ำ ${fmt(hMin.required, 1)} ซม. (${hMin.label})`,
+            `เหล็กตะแกรง ${meshSummary(layout)}`,
+            `q = ${fmt(ground.q)} ≤ qa · รับจรได้ ${fmt(ground.liveCapacity, 0)} กก./ตร.ม.`,
+          ],
+        }
+      : {
+          label: 'ผลออกแบบ',
+          cells: [
+            `h ขั้นต่ำ ${fmt(hMin.required, 1)} ซม. (${hMin.label})`,
+            `เหล็กทิศ X: ${dirSummary(layout, 'x')}`,
+            `เหล็กทิศ Y: ${dirSummary(layout, 'y')}`,
+          ],
+        },
   ]
 
-  const figures = (
+  // พื้นวางบนดินใช้แบบขยายพื้น GS แบบเดียว แทนแปลนและรูปตัด
+  const figures = ground ? (
+    <>
+      {GROUND_DETAILS.map((kind) => (
+        <figure key={kind}>
+          <GroundSlabDetail input={slab} analysis={analysis} layout={layout} kind={kind} denom={groundDenom} physicalSize />
+        </figure>
+      ))}
+    </>
+  ) : (
     <>
       <figure className="rc-plan">
         <SlabPlan input={slab} analysis={analysis} layout={layout} denom={planDenom} physicalSize />
@@ -142,7 +172,7 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
   )
 
   const notes = onGround
-    ? [BASE_NOTES[0], ON_GROUND_NOTE]
+    ? ON_GROUND_NOTES
     : slab.slabType === 'twoWay'
       ? [...BASE_NOTES, codeOf(slab) === 'aci' ? TWO_WAY_NOTE_ACI : TWO_WAY_NOTE]
       : BASE_NOTES
@@ -154,7 +184,7 @@ export function ConcreteSlabSheet({ project, title, input, remarks, pageNumber, 
       docTitle="พื้นคอนกรีตเสริมเหล็กหล่อในที่"
       subtitle={`วิธีหน่วยแรงใช้งาน (WSD) — ${codeLabel(codeOf(slab), 'พื้นหล่อในที่')}`}
       inputRows={inputRows}
-      figureTitle="แปลนพื้น และรูปตัด"
+      figureTitle={ground ? `แบบขยายพื้น ${slab.slabName || 'GS'}` : 'แปลนพื้น และรูปตัด'}
       figures={figures}
       checks={analysis.checks}
       steps={analysis.steps.filter((s) => s.print)}

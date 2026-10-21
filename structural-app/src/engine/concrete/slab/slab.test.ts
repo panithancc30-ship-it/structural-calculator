@@ -5,6 +5,8 @@ import { REBARS } from '../rebar';
 import { analyzeSlab, minThickness } from './analyzeSlab';
 import { autoSlabLayout, slabDims } from './designSlab';
 import { supportConditionOf } from './geometry';
+import { groundSlab, subgradeDragAs } from './ground';
+import { setMesh } from './layoutOps';
 import { beamReaction, method2Interp, selfWeight, slabLoads, stripMoments, twoWayCase, twoWayMoments } from './loads';
 import type { SlabInput } from './types';
 import { validateSlabInput } from './validate';
@@ -26,6 +28,7 @@ const base: SlabInput = {
   finishDL: 150,
   LL: 300,
   usage: 'light',
+  qa: 2,
   bar: 'DB12',
   tempBar: 'RB9',
 };
@@ -328,5 +331,86 @@ describe('ตรวจข้อมูลนำเข้า', () => {
 
   it('ช่วงนอกพิสัยถูกปฏิเสธ', () => {
     expect(validateSlabInput({ ...base, lx: 5 }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('พื้นวางบนดิน — แบบขยายพื้น GS', () => {
+  // ที่พักอาศัยตามแบบ: หนา 0.10 ตะแกรง RB6 (SR24) แผ่นระหว่างคาน 4 × 5 ม.
+  const gs: SlabInput = {
+    ...base, slabName: 'GS', slabType: 'onGround', cover: 7.5, usage: 'light', tempBar: 'RB6', fy: 2400,
+    finishDL: 100, LL: 200, qa: 2,
+  };
+  const run = (input: SlabInput) => {
+    const dims = slabDims(input);
+    const layout = autoSlabLayout(input, dims);
+    return { dims, layout, a: analyzeSlab(input, dims, layout) };
+  };
+
+  it('As = F·L·W/(2fs) (คำนวณมือ)', () => {
+    // F 1.5, L 5 ม., W = 240 + 100 = 340 กก./ตร.ม., fs = 0.5 × 2,400 = 1,200 ksc → 1.5×5×340/2,400 = 1.0625 ซม.²/ม.
+    expect(subgradeDragAs(1.5, 500, 340, 1200)).toBeCloseTo(1.0625, 10);
+    const g = groundSlab(gs, slabLoads(gs, 10), 1200);
+    expect(g.W).toBeCloseTo(340, 10);
+    expect(g.AsReq.x).toBeCloseTo((1.5 * 4 * 340) / 2400, 10);
+    expect(g.AsReq.y).toBeCloseTo((1.5 * 5 * 340) / 2400, 10);
+  });
+
+  it('แรงดันใต้พื้นและน้ำหนักจรที่รับได้ (คำนวณมือ)', () => {
+    // q = (240 + 100 + 200)/1,000 = 0.54 t/m², รับจรได้ = 2,000 − 340 = 1,660 กก./ตร.ม.
+    const g = groundSlab(gs, slabLoads(gs, 10), 1200);
+    expect(g.q).toBeCloseTo(0.54, 10);
+    expect(g.liveCapacity).toBeCloseTo(1660, 10);
+  });
+
+  it('ค่าตามแบบได้ หนา 0.10 ตะแกรง RB6 @ 0.25 # และผ่านทุกข้อ', () => {
+    const { dims, layout, a } = run(gs);
+    expect(dims.t).toBe(10);
+    expect(layout.bottom.x).toEqual({ size: 'RB6', spacing: 25 });
+    expect(layout.bottom.y).toEqual(layout.bottom.x);
+    expect(layout.top).toEqual({ x: null, y: null });
+    expect(a.status).toBe('ok');
+    expect(a.ground).not.toBeNull();
+  });
+
+  it('รายการตรวจสอบมีสามเรื่อง: ความหนา เหล็กเสริม การรับน้ำหนัก — ไม่มีดัดและเฉือน', () => {
+    const groups = new Set(run(gs).a.checks.map((c) => c.group));
+    expect([...groups]).toEqual(['thickness', 'reinforcement', 'capacity']);
+  });
+
+  it('แผ่นยาวขึ้น → ตะแกรงถี่ขึ้น ทั้งสองทิศเท่ากัน', () => {
+    const { layout, a } = run({ ...gs, lx: 800, ly: 900 });
+    expect(layout.bottom.x!.spacing).toBeLessThan(25);
+    expect(layout.bottom.y).toEqual(layout.bottom.x);
+    expect(a.checks.filter((c) => c.status === 'fail')).toEqual([]);
+  });
+
+  it('ตะแกรงไม่ห่างกว่า 0.25 ม. ตามแบบ แม้ As ที่ต้องการน้อย', () => {
+    const { layout } = run({ ...gs, lx: 200, ly: 200 });
+    expect(layout.bottom.x!.spacing).toBe(25);
+  });
+
+  it('แรงดันใต้พื้นเกิน qa → ไม่ผ่าน', () => {
+    const { a } = run({ ...gs, LL: 3000, qa: 2 });
+    const bearing = a.checks.find((c) => c.group === 'capacity' && c.label.includes('แรงดันใต้พื้น'));
+    expect(bearing?.status).toBe('fail');
+    expect(a.status).toBe('fail');
+  });
+
+  it('ตะแกรงห่างเกินไปที่แก้เอง → As ไม่พอ', () => {
+    const dims = slabDims(gs);
+    const layout = setMesh(autoSlabLayout(gs, dims), { spacing: 45 });
+    const a = analyzeSlab(gs, dims, layout);
+    expect(a.checks.filter((c) => c.status === 'fail').length).toBeGreaterThan(0);
+  });
+
+  it('ที่พักอาศัยไม่มีคำเตือนล้อรถ ส่วนที่จอดรถมี', () => {
+    expect(run(gs).a.checks.some((c) => c.label.includes('ล้อรถ'))).toBe(false);
+    expect(run({ ...gs, usage: 'medium' }).a.checks.some((c) => c.label.includes('ล้อรถ') && c.status === 'warn')).toBe(true);
+  });
+
+  it('แก้ตะแกรงทีเดียวได้ทั้งสองทิศ', () => {
+    const layout = setMesh(autoSlabLayout(gs, slabDims(gs)), { size: 'RB9', spacing: 20 });
+    expect(layout.bottom.x).toEqual({ size: 'RB9', spacing: 20 });
+    expect(layout.bottom.y).toEqual({ size: 'RB9', spacing: 20 });
   });
 });

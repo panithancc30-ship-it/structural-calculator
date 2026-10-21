@@ -80,7 +80,8 @@ export interface CheckItem {
   group:
     | 'flexure' | 'shear' | 'detail' | 'beam' | 'strength' | 'slenderness' | 'transverse'
     | 'soil' | 'oneWay' | 'punching' | 'anchorage' | 'bearing' | 'pile'
-    | 'deflection' | 'geometry';
+    | 'deflection' | 'geometry'
+    | 'thickness' | 'reinforcement' | 'capacity';
   label: string;
   required: string;
   provided: string;

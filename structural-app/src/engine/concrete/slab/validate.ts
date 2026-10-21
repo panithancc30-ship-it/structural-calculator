@@ -21,6 +21,7 @@ const RANGES: Range[] = [
   ['fy', [2000, 6000, 'fy']],
   ['finishDL', [0, 2000, 'น้ำหนักวัสดุปูผิว']],
   ['LL', [0, 5000, 'น้ำหนักบรรทุกจร']],
+  ['qa', [0.5, 100, 'กำลังรับน้ำหนักดิน qa']],
 ];
 
 export function validateSlabInput(input: SlabInput): string[] {
@@ -58,8 +59,10 @@ export function validateSlabInput(input: SlabInput): string[] {
 
   // ตรวจเฉพาะความหนาที่ผู้ใช้กำหนดเอง — โหมดอัตโนมัติการค้นหาความหนารับประกันเรื่องนี้ให้อยู่แล้ว
   if (input.thicknessMode === 'manual') {
-    const d = input.t - input.cover - REBARS[input.bar].dia / 2;
-    const need = input.slabType === 'onGround' ? 0 : K.minEffectiveDepth;
+    // พื้นวางบนดินมีแต่ตะแกรงกันร้าว ไม่มีเหล็กหลัก
+    const onGround = input.slabType === 'onGround';
+    const d = input.t - input.cover - REBARS[onGround ? input.tempBar : input.bar].dia / 2;
+    const need = onGround ? 0 : K.minEffectiveDepth;
     if (d <= need) errors.push('พื้นบางเกินไปสำหรับระยะหุ้มและขนาดเหล็กที่กำหนด');
   }
 
@@ -82,7 +85,7 @@ export function slabWarnings(input: SlabInput): string[] {
 
   // เหล็กกลม (RB) ในไทยเป็นชั้นคุณภาพ SR24 ส่วนเหล็กข้ออ้อย (DB) เป็น SD30 ขึ้นไป
   // โปรแกรมให้เลือกขนาดกับ fy แยกกัน จึงเตือนเมื่อจับคู่กันไม่ตรงตามปกติ
-  const kinds = [input.bar, input.tempBar].map((b) => REBARS[b].kind);
+  const kinds = (input.slabType === 'onGround' ? [input.tempBar] : [input.bar, input.tempBar]).map((b) => REBARS[b].kind);
   if (kinds.includes('RB') && input.fy > 2400) {
     warnings.push(`เลือกเหล็กกลม RB แต่ตั้ง fy = ${input.fy} ksc — เหล็กกลมตาม มอก. เป็น SR24 (fy 2,400 ksc)`);
   }

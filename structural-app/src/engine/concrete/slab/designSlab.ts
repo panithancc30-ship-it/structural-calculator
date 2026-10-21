@@ -7,6 +7,7 @@ import { ALL_BAR_SIZES, REBARS, type BarName } from '../rebar';
 import type { Face } from '../types';
 import { minThickness } from './analyzeSlab';
 import { DIRS, FACES, slabGeometry } from './geometry';
+import { groundMeshMaxSpacing, groundSlab } from './ground';
 import { slabLoads, stripDemand } from './loads';
 import type { BarRun, SlabDims, SlabInput, SlabLayout } from './types';
 
@@ -115,12 +116,34 @@ export function candidatesFrom(pick: BarName): BarName[] {
   return [...ALL_BAR_SIZES.slice(start), ...ALL_BAR_SIZES.slice(0, start).reverse()];
 }
 
+/**
+ * พื้นวางบนดิน: ตะแกรงชั้นเดียว ขนาดและระยะเรียงเดียวกันสองทิศ (# ตามแบบขยายพื้น GS)
+ * ออกแบบด้วยทิศที่แผ่นยาวกว่า (As มากกว่า) แล้วใช้ชุดเดียวกันทั้งสองทิศ
+ */
+function groundMeshLayout(input: SlabInput, dims: SlabDims): SlabLayout {
+  const p = wsdParams(input.fc, input.fy, input.fy);
+  const g = groundSlab(input, slabLoads(input, dims.t), p.fsAllow);
+  const outer: BarDir = g.AsReq.x >= g.AsReq.y ? 'x' : 'y';
+  const run = pickRun(candidatesFrom(input.tempBar), Math.max(g.AsReq.x, g.AsReq.y), groundMeshMaxSpacing(dims.t), {
+    t: dims.t,
+    cover: input.cover,
+    behind: REBARS[input.tempBar].dia,
+    fsjRequired: null,
+    minDepth: 0,
+  });
+  return {
+    bottom: { x: run, y: run && { ...run } },
+    top: { x: null, y: null },
+    outerLayer: { bottom: outer, top: outer },
+  };
+}
+
 /** จัดเหล็กทั้งสองผิวสองทิศให้อัตโนมัติ */
 export function autoSlabLayout(input: SlabInput, dims: SlabDims): SlabLayout {
+  if (input.slabType === 'onGround') return groundMeshLayout(input, dims);
   const p = wsdParams(input.fc, input.fy, input.fy);
   const demands = demandAt(input, dims.t);
   const rho = asMinRatio(input.fy, codeOf(input));
-  const flexural = input.slabType !== 'onGround';
   const AsTemp = rho * STRIP * dims.t;
 
   const mainCandidates = candidatesFrom(input.bar);
@@ -156,8 +179,6 @@ export function autoSlabLayout(input: SlabInput, dims: SlabDims): SlabLayout {
 
       // ไม่มีโมเมนต์ → เหล็กกันร้าว/เหล็กกระจาย
       // ใส่ที่ผิวล่างเสมอ และใส่ผิวใดก็ตามที่อีกทิศมีเหล็กรับดัดอยู่ (เหล็กกระจายต้องอยู่ผิวเดียวกัน)
-      // พื้นวางบนดินใช้ตะแกรงชั้นเดียวตามงานจริง ถ้าใส่สองผิวด้วยระยะหุ้มหล่อติดดิน 7.5 ซม.
-      // เหล็กสองผิวจะไขว้กันในพื้นบาง
       const otherDirHasMain = demands.find((x) => x.dir !== dir)!.M[face] > 0;
       const needTemp = face === 'bottom' || otherDirHasMain;
       target[dir] = needTemp
@@ -166,7 +187,7 @@ export function autoSlabLayout(input: SlabInput, dims: SlabDims): SlabLayout {
             cover: input.cover,
             behind: behindDia,
             fsjRequired: null,
-            minDepth: flexural ? K.minEffectiveDepth : 0,
+            minDepth: K.minEffectiveDepth,
           })
         : null;
     }

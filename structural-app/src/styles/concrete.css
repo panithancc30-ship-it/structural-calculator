@@ -677,6 +677,29 @@
   max-height: 340px;
 }
 
+/* ---------- พื้นวางบนดิน: แบบขยายพื้น GS สองรูปคู่กัน (ด้านสั้นภายนอก | ด้านสั้นภายใน) ---------- */
+/* ความกว้างช่องเป็นสัดส่วนกับความกว้างรูปจริง (--w มม.) สองรูปจึงเห็นมาตราส่วนเท่ากัน */
+.rc-scope .ground-details {
+  display: flex;
+  gap: 8px 24px;
+  align-items: flex-start;
+}
+
+.rc-scope .ground-detail {
+  flex: var(--w, 1) 1 0;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .rc-scope .ground-details {
+    display: block;
+  }
+
+  .rc-scope .ground-detail + .ground-detail {
+    margin-top: 10px;
+  }
+}
+
 /* ---------- pile cap: รูปตัด 1 รูป + แปลน 1 รูป มาตราส่วนเดียวกัน ---------- */
 .rc-scope .pilecap-figures {
   display: flex;

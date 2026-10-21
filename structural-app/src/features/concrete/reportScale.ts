@@ -22,5 +22,11 @@ export const PILECAP_SECTION_BOX = { w: 108, h: 84 }
 export const SLAB_PLAN_BOX = { w: 80, h: 66 }
 export const SLAB_SECTION_BOX = { w: 82, h: 34 }
 
+/**
+ * พื้นวางบนดินใช้แบบขยายพื้น GS สองรูป — กรอบละเต็มความกว้างหน้า จึงได้ 1:20 ตามแบบ
+ * สองรูปรวมกันพอดีหน้าก็วางคู่กัน ถ้ากว้างเกิน flex-wrap เรียงซ้อนกันเอง
+ */
+export const SLAB_GROUND_BOX = { w: 168, h: 46 }
+
 /** บันไดมีรูปตัดรูปเดียวเต็มความกว้างหน้า */
 export const STAIR_SECTION_BOX = { w: 168, h: 78 }

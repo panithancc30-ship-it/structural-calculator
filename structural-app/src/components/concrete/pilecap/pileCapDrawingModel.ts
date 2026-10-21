@@ -103,7 +103,7 @@ function chainPicks(segs: DimSeg[], edge: DimKey, spacing: DimKey, s: number): D
 }
 
 /** หัวลูกศรปิด ปลายที่ tip ชี้จากทิศ from */
-function arrowHead(tip: Pt, from: Pt, u: number): string {
+export function arrowHead(tip: Pt, from: Pt, u: number): string {
   const dx = tip.x - from.x;
   const dy = tip.y - from.y;
   const len = Math.hypot(dx, dy) || 1;

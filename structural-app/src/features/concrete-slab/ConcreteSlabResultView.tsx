@@ -1,8 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import { usePopover } from '@/components/concrete/editor/usePopover'
 import { CalcSteps } from '@/components/concrete/results/CalcSteps'
 import { CheckTable } from '@/components/concrete/results/CheckTable'
 import { StatusBadge } from '@/components/concrete/results/StatusBadge'
+import { GroundSlabDetail } from '@/components/concrete/slab/GroundSlabDrawings'
+import {
+  buildGroundDetail,
+  GROUND_DETAILS,
+  meshSummary,
+  pickGroundScale,
+} from '@/components/concrete/slab/groundSlabDrawingModel'
 import { SlabPlan, SlabSection } from '@/components/concrete/slab/SlabDrawings'
 import { SlabBarPopover, type ApplySlabEdit } from '@/components/concrete/slab/SlabPopover'
 import {
@@ -40,9 +47,23 @@ export function ConcreteSlabResultView() {
     () => (analysis ? pickSectionScale(input, analysis, layout) : 50),
     [analysis, input, layout],
   )
+  const groundDenom = useMemo(
+    () => (analysis?.ground ? pickGroundScale(input, analysis, layout) : 20),
+    [analysis, input, layout],
+  )
+  // สองรูปใช้มาตราส่วนเดียวกัน — ให้ความกว้างช่องเป็นสัดส่วนกับความกว้างรูปจริง รูปบนจอจึงขนาดเท่ากันด้วย
+  const groundWidths = useMemo(
+    () =>
+      analysis?.ground
+        ? GROUND_DETAILS.map((kind) => buildGroundDetail(input, analysis, layout, kind, groundDenom).sizeMm.w)
+        : [],
+    [analysis, input, layout, groundDenom],
+  )
 
   const apply: ApplySlabEdit = (fn) => editLayout(fn)
   const selectedKey = pop.sel ? pickKey(pop.sel.pick.face, pop.sel.pick.dir) : null
+  // พื้นวางบนดิน: แก้ตะแกรงสองทิศพร้อมกัน แสดงความต้องการของทิศที่ต้องการ As มากกว่า
+  const meshDir = analysis && analysis.y.bottom.AsReq > analysis.x.bottom.AsReq ? 'y' : 'x'
 
   return (
     <div className="rc-scope space-y-3.5">
@@ -70,12 +91,28 @@ export function ConcreteSlabResultView() {
               <span>
                 w ใช้งาน <b>{fmt(analysis.loads.w, 0)}</b> กก./ตร.ม.
               </span>
-              <span>
-                X <b>{dirSummary(layout, 'x')}</b>
-              </span>
-              <span>
-                Y <b>{dirSummary(layout, 'y')}</b>
-              </span>
+              {analysis.ground ? (
+                <>
+                  <span>
+                    ตะแกรง <b>{meshSummary(layout)}</b>
+                  </span>
+                  <span>
+                    q <b>{fmt(analysis.ground.q)}</b> ≤ qa <b>{fmt(analysis.ground.qa)}</b> t/m²
+                  </span>
+                  <span>
+                    รับน้ำหนักจรได้ <b>{fmt(analysis.ground.liveCapacity, 0)}</b> กก./ตร.ม.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    X <b>{dirSummary(layout, 'x')}</b>
+                  </span>
+                  <span>
+                    Y <b>{dirSummary(layout, 'y')}</b>
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -107,59 +144,58 @@ export function ConcreteSlabResultView() {
             </div>
           )}
 
-          <div className="footing-grid">
+          {analysis.ground ? (
             <section className="card section-card">
               <header className="section-head">
                 <h2>
-                  แปลนพื้น {input.slabName || 'S1'}
+                  แบบขยายพื้น {input.slabName || 'GS'}
                   <small>{SLAB_TYPE_TH[input.slabType]}</small>
                 </h2>
                 <StatusBadge status={analysis.status} />
                 {edited && <span className="tag">แก้ไขเอง</span>}
               </header>
-              <div className="drawing-wrap" ref={pop.wrapRef}>
-                <SlabPlan
-                  input={input}
-                  analysis={analysis}
-                  layout={layout}
-                  denom={planDenom}
-                  interactive
-                  selectedKey={selectedKey}
-                  onPick={(pick, e) => pop.openAt(pick, e.clientX, e.clientY)}
-                  onBackgroundClick={pop.close}
-                />
+              <div className="drawing-wrap ground-details" ref={pop.wrapRef}>
+                {GROUND_DETAILS.map((kind, i) => (
+                  <div key={kind} className="ground-detail" style={{ '--w': groundWidths[i] } as CSSProperties}>
+                    <GroundSlabDetail
+                      input={input}
+                      analysis={analysis}
+                      layout={layout}
+                      kind={kind}
+                      denom={groundDenom}
+                      interactive
+                      selected={pop.sel !== null}
+                      onPick={(pick, e) => pop.openAt(pick, e.clientX, e.clientY)}
+                      onBackgroundClick={pop.close}
+                    />
+                  </div>
+                ))}
                 {pop.sel && suggested && (
-                  <div className="popover" style={pop.style} role="dialog" aria-label="แก้ไขเหล็กพื้น">
+                  <div className="popover" style={pop.style} role="dialog" aria-label="แก้ไขเหล็กตะแกรง">
                     <button type="button" className="popover-close" onClick={pop.close} aria-label="ปิด">
                       ×
                     </button>
                     <SlabBarPopover
-                      face={pop.sel.pick.face}
-                      dir={pop.sel.pick.dir}
+                      mesh
+                      face="bottom"
+                      dir={meshDir}
                       layout={layout}
-                      demand={analysis[pop.sel.pick.dir][pop.sel.pick.face]}
-                      suggested={suggested[pop.sel.pick.face][pop.sel.pick.dir]}
+                      demand={analysis[meshDir].bottom}
+                      suggested={suggested.bottom[meshDir]}
                       apply={apply}
                     />
                   </div>
                 )}
               </div>
-              <p className="hint">
-                คลิกที่เหล็กหรือป้ายชื่อ เพื่อเปลี่ยนขนาดและระยะเรียง — เส้นประคือเหล็กผิวบน
-              </p>
+              <p className="hint">คลิกที่เหล็กหรือป้ายเหล็ก เพื่อเปลี่ยนขนาดและระยะเรียงตะแกรง (สองทิศพร้อมกัน)</p>
               <div className="toolbar">
-                {(['bottom', 'top'] as const).map((face) =>
-                  (['x', 'y'] as const).map((dir) => (
-                    <button
-                      key={`${face}-${dir}`}
-                      type="button"
-                      className="btn"
-                      onClick={() => pop.openTopRight({ kind: 'bars', face, dir })}
-                    >
-                      ผิว{face === 'bottom' ? 'ล่าง' : 'บน'} {dir.toUpperCase()}…
-                    </button>
-                  )),
-                )}
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => pop.openTopRight({ kind: 'bars', face: 'bottom', dir: meshDir })}
+                >
+                  เหล็กตะแกรง…
+                </button>
                 {edited && (
                   <button type="button" className="btn accent" onClick={redesign}>
                     ↺ ออกแบบอัตโนมัติใหม่
@@ -167,22 +203,84 @@ export function ConcreteSlabResultView() {
                 )}
               </div>
             </section>
-
-            <section className="card sections-card">
-              {sectionDirs(input).map((dir) => (
-                <div key={dir} className="drawing-wrap section-wrap">
-                  <SlabSection
+          ) : (
+            <div className="footing-grid">
+              <section className="card section-card">
+                <header className="section-head">
+                  <h2>
+                    แปลนพื้น {input.slabName || 'S1'}
+                    <small>{SLAB_TYPE_TH[input.slabType]}</small>
+                  </h2>
+                  <StatusBadge status={analysis.status} />
+                  {edited && <span className="tag">แก้ไขเอง</span>}
+                </header>
+                <div className="drawing-wrap" ref={pop.wrapRef}>
+                  <SlabPlan
                     input={input}
                     analysis={analysis}
                     layout={layout}
-                    denom={sectionDenom}
-                    dir={dir}
+                    denom={planDenom}
+                    interactive
                     selectedKey={selectedKey}
+                    onPick={(pick, e) => pop.openAt(pick, e.clientX, e.clientY)}
+                    onBackgroundClick={pop.close}
                   />
+                  {pop.sel && suggested && (
+                    <div className="popover" style={pop.style} role="dialog" aria-label="แก้ไขเหล็กพื้น">
+                      <button type="button" className="popover-close" onClick={pop.close} aria-label="ปิด">
+                        ×
+                      </button>
+                      <SlabBarPopover
+                        face={pop.sel.pick.face}
+                        dir={pop.sel.pick.dir}
+                        layout={layout}
+                        demand={analysis[pop.sel.pick.dir][pop.sel.pick.face]}
+                        suggested={suggested[pop.sel.pick.face][pop.sel.pick.dir]}
+                        apply={apply}
+                      />
+                    </div>
+                  )}
                 </div>
-              ))}
-            </section>
-          </div>
+                <p className="hint">
+                  คลิกที่เหล็กหรือป้ายชื่อ เพื่อเปลี่ยนขนาดและระยะเรียง — เส้นประคือเหล็กผิวบน
+                </p>
+                <div className="toolbar">
+                  {(['bottom', 'top'] as const).map((face) =>
+                    (['x', 'y'] as const).map((dir) => (
+                      <button
+                        key={`${face}-${dir}`}
+                        type="button"
+                        className="btn"
+                        onClick={() => pop.openTopRight({ kind: 'bars', face, dir })}
+                      >
+                        ผิว{face === 'bottom' ? 'ล่าง' : 'บน'} {dir.toUpperCase()}…
+                      </button>
+                    )),
+                  )}
+                  {edited && (
+                    <button type="button" className="btn accent" onClick={redesign}>
+                      ↺ ออกแบบอัตโนมัติใหม่
+                    </button>
+                  )}
+                </div>
+              </section>
+
+              <section className="card sections-card">
+                {sectionDirs(input).map((dir) => (
+                  <div key={dir} className="drawing-wrap section-wrap">
+                    <SlabSection
+                      input={input}
+                      analysis={analysis}
+                      layout={layout}
+                      denom={sectionDenom}
+                      dir={dir}
+                      selectedKey={selectedKey}
+                    />
+                  </div>
+                ))}
+              </section>
+            </div>
+          )}
 
           <section className="card">
             <CheckTable checks={analysis.checks} />
