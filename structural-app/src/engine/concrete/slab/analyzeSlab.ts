@@ -4,10 +4,11 @@ import { wsdParams, type WsdParams } from '../design/flexure';
 import { worstStatus } from '../design/sectionCheck';
 import { asMinRatio, DIR_TH } from '../footing/analyzeFooting';
 import type { BarDir } from '../footing/types';
-import { fmt } from '../format';
+import { cmToM, fmt } from '../format';
 import { REBARS } from '../rebar';
 import type { CalcStep, CheckItem, CheckStatus, Face, SupportCondition } from '../types';
 import { FACES, slabGeometry, supportConditionOf, type SlabGeometry } from './geometry';
+import { groundMeshMaxSpacing, groundSlab, type GroundSlab } from './ground';
 import { beamReaction, slabLoads, stripDemand, type SlabLoads, type StripMoments } from './loads';
 import type { SlabDims, SlabInput, SlabLayout } from './types';
 
@@ -85,6 +86,8 @@ export interface SlabAnalysis {
   hMin: MinThickness;
   x: SlabDirection;
   y: SlabDirection;
+  /** พื้นวางบนดิน: เหล็กตะแกรง (subgrade drag) และแรงดันใต้พื้น — null สำหรับพื้นชนิดอื่น */
+  ground: GroundSlab | null;
   checks: CheckItem[];
   steps: CalcStep[];
   status: CheckStatus;
@@ -102,17 +105,21 @@ function faceDemand(
   face: Face,
   dir: BarDir,
   Mdesign: number,
+  ground: GroundSlab | null,
 ): SlabFaceDemand {
   const run = layout[face][dir];
   const d = geom.d[face][dir];
   const db = geom.db[face][dir];
   // As ต่ำสุดของพื้นคือเหล็กกันร้าว/อุณหภูมิคิดเต็มความหนา (7.12) ไม่ใช่ 14bd/fy ของคาน
-  const AsMin = asMinRatio(input.fy, codeOf(input)) * STRIP * t;
+  // พื้นวางบนดินใช้ subgrade drag แทน เพราะ ACI 318 ไม่ครอบคลุม (ดู ground.ts)
+  const AsMin = ground ? ground.AsReq[dir] : asMinRatio(input.fy, codeOf(input)) * STRIP * t;
   const AsFlex = d > 0 ? Mdesign / (p.fsAllow * p.j * d) : Infinity;
   const AsReq = Math.max(AsFlex, AsMin);
   const AsProv = run ? (STRIP / run.spacing) * REBARS[run.size].area : 0;
   const isMain = Mdesign > 0;
-  const sMax = Math.min((isMain ? K.maxSpacingFactor : K.tempSpacingFactor) * t, K.maxSpacing);
+  const sMax = ground
+    ? groundMeshMaxSpacing(t)
+    : Math.min((isMain ? K.maxSpacingFactor : K.tempSpacingFactor) * t, K.maxSpacing);
 
   return {
     Mdesign, d, db,
@@ -134,6 +141,7 @@ function directionOf(
   geom: SlabGeometry,
   p: WsdParams,
   dir: BarDir,
+  ground: GroundSlab | null,
 ): SlabDirection {
   const { span, support, w, moments, V } = stripDemand(input, loads, dir);
   const dForShear = Math.max(geom.d.bottom[dir], geom.d.top[dir]);
@@ -141,8 +149,8 @@ function directionOf(
 
   return {
     dir, span, support, w, moments,
-    bottom: faceDemand(input, layout, geom, p, dims.t, 'bottom', dir, moments.pos),
-    top: faceDemand(input, layout, geom, p, dims.t, 'top', dir, Math.max(moments.negEnd, moments.negInt)),
+    bottom: faceDemand(input, layout, geom, p, dims.t, 'bottom', dir, moments.pos, ground),
+    top: faceDemand(input, layout, geom, p, dims.t, 'top', dir, Math.max(moments.negEnd, moments.negInt), ground),
     V,
     v: dForShear > 0 ? V / (STRIP * dForShear) : Infinity,
     vc,
@@ -155,10 +163,16 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   const loads = slabLoads(input, dims.t);
   const geom = slabGeometry(input.cover, dims.t, layout);
   const hMin = minThickness(input, dims);
+  const ground = input.slabType === 'onGround' ? groundSlab(input, loads, p.fsAllow) : null;
 
-  const x = directionOf(input, dims, loads, layout, geom, p, 'x');
-  const y = directionOf(input, dims, loads, layout, geom, p, 'y');
+  const x = directionOf(input, dims, loads, layout, geom, p, 'x', ground);
+  const y = directionOf(input, dims, loads, layout, geom, p, 'y', ground);
   const dirs = [x, y];
+
+  if (ground) {
+    const { checks, steps } = groundChecks(input, dims, layout, loads, hMin, ground, dirs);
+    return { input, dims, params: p, loads, geom, hMin, x, y, ground, checks, steps, status: worstStatus(checks) };
+  }
 
   const checks: CheckItem[] = [];
   const push = (group: CheckItem['group'], label: string, required: string, provided: string, status: CheckStatus) =>
@@ -172,7 +186,7 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
 
   // ---------- 2. ดัดและเหล็กเสริม ----------
   // ตารางวิธีที่ 2 ของพื้นสองทางไม่มีเงื่อนไขนี้
-  if (input.slabType !== 'onGround' && !loads.twoWay) {
+  if (!loads.twoWay) {
     const ll = loads.wLive;
     const dl = loads.wDead;
     push('flexure', `น้ำหนักจร ≤ ${K.liveToDeadLimit}×น้ำหนักคงที่ (เงื่อนไขใช้สัมประสิทธิ์ 8.3.3)`,
@@ -199,23 +213,20 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   }
 
   // ---------- 3. เฉือนทางเดียว ----------
-  if (input.slabType !== 'onGround') {
-    for (const r of dirs) {
-      if (r.w <= 0) continue;
-      push('oneWay', `v ${DIR_TH[r.dir]} ที่ผิวที่รองรับ (ksc)`, `≤ ${fmt(r.vc)}`, fmt(r.v),
-        okIf(r.v <= r.vc * (1 + 1e-6)));
-    }
+  for (const r of dirs) {
+    if (r.w <= 0) continue;
+    push('oneWay', `v ${DIR_TH[r.dir]} ที่ผิวที่รองรับ (ksc)`, `≤ ${fmt(r.vc)}`, fmt(r.v),
+      okIf(r.v <= r.vc * (1 + 1e-6)));
   }
 
   // ---------- 4. การจัดเหล็ก ----------
   const dMin = Math.min(...dirs.flatMap((r) => FACES.filter((f) => layout[f][r.dir]).map((f) => r[f].d)));
-  if (Number.isFinite(dMin) && input.slabType !== 'onGround') {
+  if (Number.isFinite(dMin)) {
     push('detail', 'ความลึกประสิทธิผล d (ซม.)', `≥ ${fmt(K.minEffectiveDepth, 1)}`, fmt(dMin, 1),
       okIf(dMin >= K.minEffectiveDepth - 1e-9));
   }
-  const coverMin = input.slabType === 'onGround' ? K.coverOnGround : K.cover;
-  push('detail', 'ระยะหุ้มคอนกรีต (ซม.)', `≥ ${fmt(coverMin, 1)}`, fmt(input.cover, 1),
-    okIf(input.cover >= coverMin - 1e-9));
+  push('detail', 'ระยะหุ้มคอนกรีต (ซม.)', `≥ ${fmt(K.cover, 1)}`, fmt(input.cover, 1),
+    okIf(input.cover >= K.cover - 1e-9));
 
   for (const r of dirs) {
     for (const face of FACES) {
@@ -226,10 +237,6 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
       push('detail', `ช่องว่างเหล็ก${DIR_TH[r.dir]} ผิว${FACE_TH[face]} (ซม.)`, `≥ ${fmt(f.clearReq, 1)}`, fmt(f.clear, 1),
         okIf(f.clear >= f.clearReq - 1e-9));
     }
-  }
-
-  if (input.slabType === 'onGround') {
-    push('detail', 'น้ำหนักกระทำเป็นจุด / ล้อรถ', 'ต้องตรวจแยก', 'ยังไม่ได้ตรวจ', 'warn');
   }
 
   // ---------- ขั้นตอนคำนวณ ----------
@@ -259,7 +266,7 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
   }
 
   for (const r of dirs) {
-    if (r.w <= 0 || input.slabType === 'onGround') continue;
+    if (r.w <= 0) continue;
     const d = r.moments.divisors;
     const c = r.moments.coefs;
     const parts = c
@@ -304,11 +311,102 @@ export function analyzeSlab(input: SlabInput, dims: SlabDims, layout: SlabLayout
       steps.push({
         label: `เหล็ก${DIR_TH[r.dir]} ผิว${FACE_TH[face]}`,
         formula: `As ต้องการ max(M/(fs·j·d), ρ·b·t) = ${fmt(f.AsReq)} ซม.²/ม.`,
-        value: `${run.size} @ ${fmt(run.spacing / 100, 2)} (${fmt(f.AsProv)} ซม.²/ม.)`,
+        value: `${run.size} @ ${cmToM(run.spacing)} (${fmt(f.AsProv)} ซม.²/ม.)`,
         print: true,
       });
     }
   }
 
-  return { input, dims, params: p, loads, geom, hMin, x, y, checks, steps, status: worstStatus(checks) };
+  return { input, dims, params: p, loads, geom, hMin, x, y, ground, checks, steps, status: worstStatus(checks) };
+}
+
+/**
+ * รายการตรวจสอบพื้นวางบนดิน (แบบขยายพื้น GS) — สามเรื่องที่ต้องตอบ: ความหนา เหล็กเสริม และรับน้ำหนักได้หรือไม่
+ * ไม่มีดัดและเฉือนจากน้ำหนักแผ่ เพราะน้ำหนักลงทรายรองพื้นโดยตรง (ดู ground.ts)
+ */
+function groundChecks(
+  input: SlabInput,
+  dims: SlabDims,
+  layout: SlabLayout,
+  loads: SlabLoads,
+  hMin: MinThickness,
+  g: GroundSlab,
+  dirs: SlabDirection[],
+): { checks: CheckItem[]; steps: CalcStep[] } {
+  const checks: CheckItem[] = [];
+  const push = (group: CheckItem['group'], label: string, required: string, provided: string, status: CheckStatus) =>
+    checks.push({ id: `S-${checks.length}`, group, label, required, provided, status });
+  const okIf = (cond: boolean, otherwise: CheckStatus = 'fail'): CheckStatus => (cond ? 'ok' : otherwise);
+  const m = (cm: number) => fmt(cm / 100, 2);
+
+  // ---------- 1. ความหนา ----------
+  push('thickness', `ความหนา h — ${hMin.label} (ซม.)`, `≥ ${fmt(hMin.required, 1)}`, fmt(dims.t, 1),
+    okIf(dims.t + 1e-9 >= hMin.required, 'warn'));
+
+  // ---------- 2. เหล็กเสริม (ตะแกรงชั้นเดียว) ----------
+  for (const r of dirs) {
+    const f = r.bottom;
+    push('reinforcement', `As ${DIR_TH[r.dir]} = F·L·W/(2fs), L = ${m(g.L[r.dir])} ม. (ซม.²/ม.)`, `≥ ${fmt(f.AsReq)}`,
+      fmt(f.AsProv), okIf(f.AsProv >= f.AsReq * (1 - 1e-6)));
+  }
+  for (const r of dirs) {
+    const f = r.bottom;
+    if (f.spacing === null) continue;
+    push('reinforcement', `ระยะเรียงเหล็ก${DIR_TH[r.dir]} (ซม.)`, `≤ ${fmt(f.sMax, 1)}`, fmt(f.spacing, 1),
+      okIf(f.spacing <= f.sMax + 1e-9));
+    push('reinforcement', `ช่องว่างเหล็ก${DIR_TH[r.dir]} (ซม.)`, `≥ ${fmt(f.clearReq, 1)}`, fmt(f.clear, 1),
+      okIf(f.clear >= f.clearReq - 1e-9));
+  }
+  push('reinforcement', 'ระยะหุ้มคอนกรีตด้านทรายรองพื้น (ซม.)', `≥ ${fmt(K.coverOnGround, 1)}`, fmt(input.cover, 1),
+    okIf(input.cover >= K.coverOnGround - 1e-9));
+
+  // ---------- 3. การรับน้ำหนัก ----------
+  push('capacity', 'แรงดันใต้พื้น q = น้ำหนักคงที่ + จร (t/m²)', `≤ qa ${fmt(g.qa)}`, fmt(g.q),
+    okIf(g.q <= g.qa * (1 + 1e-6)));
+  // ที่พักอาศัยไม่มีล้อรถ — ส่วนที่จอดรถและโกดังมีน้ำหนักกระทำเป็นจุดที่ต้องใช้ค่า k ของดินตรวจแยก
+  if (input.usage !== 'light') {
+    push('capacity', 'น้ำหนักล้อรถ / น้ำหนักกระทำเป็นจุด', 'ต้องตรวจแยก', 'ยังไม่ได้ตรวจ', 'warn');
+  }
+
+  // ---------- ขั้นตอนคำนวณ ----------
+  const steps: CalcStep[] = [
+    { label: 'น้ำหนักตัวพื้น', formula: `${fmt(dims.t, 1)} ซม. × 2,400 กก./ลบ.ม.`, value: `${fmt(loads.wSelf, 0)} กก./ตร.ม.`, print: true },
+    { label: 'W น้ำหนักคงที่', formula: 'ตัวพื้น + วัสดุปูผิว', value: `${fmt(g.W, 0)} กก./ตร.ม.`, print: true },
+    { label: 'h ขั้นต่ำ', formula: hMin.label, value: `${fmt(hMin.required, 1)} ซม.`, print: true },
+    { label: 'fs', formula: '0.5fy ≤ 1,700 ksc', value: `${fmt(g.fs, 0)} ksc`, print: true },
+  ];
+  for (const r of dirs) {
+    steps.push({
+      label: `As ${DIR_TH[r.dir]}`,
+      formula: `F·L·W/(2fs) = ${fmt(g.F, 1)} × ${m(g.L[r.dir])} × ${fmt(g.W, 0)} / (2 × ${fmt(g.fs, 0)})`,
+      value: `${fmt(g.AsReq[r.dir])} ซม.²/ม.`,
+      print: true,
+    });
+  }
+  for (const r of dirs) {
+    const run = layout.bottom[r.dir];
+    if (!run) continue;
+    steps.push({
+      label: `เหล็ก${DIR_TH[r.dir]}`,
+      formula: `As ต้องการ ${fmt(r.bottom.AsReq)} ซม.²/ม.`,
+      value: `${run.size} @ ${cmToM(run.spacing)} (${fmt(r.bottom.AsProv)} ซม.²/ม.)`,
+      print: true,
+    });
+  }
+  steps.push(
+    {
+      label: 'แรงดันใต้พื้น',
+      formula: `q = (W + จร)/1,000 = (${fmt(g.W, 0)} + ${fmt(loads.wLive, 0)})/1,000`,
+      value: `${fmt(g.q)} t/m² (qa ${fmt(g.qa)})`,
+      print: true,
+    },
+    {
+      label: 'จรที่รับได้',
+      formula: `qa − W = ${fmt(g.qa * 1000, 0)} − ${fmt(g.W, 0)}`,
+      value: `${fmt(g.liveCapacity, 0)} กก./ตร.ม.`,
+      print: true,
+    },
+  );
+
+  return { checks, steps };
 }

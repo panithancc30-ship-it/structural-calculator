@@ -26,6 +26,14 @@ describe('ไฟล์โครงการพื้น', () => {
     expect(parsed.layout.top.x).toBeNull();
   });
 
+  it('ไฟล์เก่าที่ไม่มี qa เปิดได้ (ใช้ค่าเริ่มต้น)', () => {
+    const { qa: _qa, ...old } = DEFAULT_SLAB;
+    const parsed = parseSlabProject({ app: 'rc-slab-wsd', version: 1, input: old, layout, edited: false });
+    expect(typeof parsed).not.toBe('string');
+    if (typeof parsed === 'string') return;
+    expect(parsed.input.qa).toBe(DEFAULT_SLAB.qa);
+  });
+
   it('ปฏิเสธไฟล์ผิดรูปแบบ', () => {
     expect(parseSlabProject({ app: 'rc-footing-wsd' })).toBe('ไม่ใช่ไฟล์โครงการพื้นของโปรแกรมนี้');
     const file = toSlabProjectFile({ input: DEFAULT_SLAB, layout, edited: false });

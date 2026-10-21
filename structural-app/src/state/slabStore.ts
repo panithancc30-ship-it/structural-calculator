@@ -25,6 +25,7 @@ export const DEFAULT_SLAB: SlabInput = {
   finishDL: 150,
   LL: 300,
   usage: 'light',
+  qa: 2,
   bar: 'DB12',
   tempBar: 'RB9',
 };

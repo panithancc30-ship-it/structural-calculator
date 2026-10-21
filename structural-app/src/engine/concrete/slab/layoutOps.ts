@@ -24,3 +24,12 @@ export function toggleRun(layout: SlabLayout, face: Face, dir: BarDir, fallback:
 export function setOuterLayer(layout: SlabLayout, face: Face, dir: BarDir): SlabLayout {
   return { ...layout, outerLayer: { ...layout.outerLayer, [face]: dir } };
 }
+
+/** พื้นวางบนดิน: แก้ตะแกรงทั้งสองทิศพร้อมกัน ให้ขนาดและระยะเรียงเท่ากัน (# ตามแบบขยายพื้น GS) */
+export function setMesh(layout: SlabLayout, patch: Partial<BarRun>): SlabLayout {
+  const base = layout.bottom.x ?? layout.bottom.y;
+  if (!base) return layout;
+  const next = { ...base, ...patch };
+  const run = { ...next, spacing: clampSpacing(next.spacing) };
+  return { ...layout, bottom: { x: { ...run }, y: { ...run } } };
+}

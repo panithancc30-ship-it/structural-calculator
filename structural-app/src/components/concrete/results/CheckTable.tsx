@@ -18,6 +18,9 @@ export const GROUP_TH: Record<CheckItem['group'], string> = {
   pile: 'เสาเข็ม',
   deflection: 'การโก่งตัวและความหนาขั้นต่ำ',
   geometry: 'ขนาดขั้นบันได',
+  thickness: 'ความหนา',
+  reinforcement: 'เหล็กเสริม',
+  capacity: 'การรับน้ำหนัก',
 };
 
 export function CheckTable({ checks, compact = false }: { checks: CheckItem[]; compact?: boolean }) {

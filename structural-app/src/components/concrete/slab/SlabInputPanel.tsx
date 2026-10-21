@@ -3,7 +3,7 @@ import { fmt } from '@/engine/concrete/format';
 import { ALL_BAR_SIZES, STEEL_GRADES } from '@/engine/concrete/rebar';
 import type { EdgeSupport, GroundUsage, SizeMode, SlabDims, SlabInput, SlabType } from '@/engine/concrete/slab/types';
 import { slabWarnings } from '@/engine/concrete/slab/validate';
-import { useSlabStore } from '@/state/slabStore';
+import { DEFAULT_SLAB, useSlabStore } from '@/state/slabStore';
 import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 
 type NumericKey = { [P in keyof SlabInput]-?: SlabInput[P] extends number ? P : never }[keyof SlabInput];
@@ -40,10 +40,22 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
   const twoWay = input.slabType === 'twoWay';
   const warnings = slabWarnings(input);
 
-  /** เปลี่ยนชนิดพื้นต้องปรับสภาพขอบให้สมเหตุสมผลไปด้วย */
+  /**
+   * เปลี่ยนชนิดพื้นต้องปรับสภาพขอบและระยะหุ้มให้สมเหตุสมผลไปด้วย
+   * พื้นวางบนดินเริ่มจากตะแกรง RB6 (SR24) ตามแบบขยายพื้น GS — ออกจากพื้นวางบนดินคืน fy ของพื้นทั่วไป
+   */
   const changeType = (slabType: SlabType) => {
+    // กดปุ่มชนิดเดิมซ้ำต้องไม่ล้างเหล็กและ fy ที่ผู้ใช้เลือกไว้
+    if (slabType === input.slabType) return;
+    const cover = slabType === 'onGround' ? K.coverOnGround : K.cover;
+    const material: Partial<SlabInput> =
+      slabType === 'onGround'
+        ? { tempBar: 'RB6', fy: STEEL_GRADES.find((g) => g.kind === 'RB')!.fy }
+        : onGround
+          ? { fy: DEFAULT_SLAB.fy }
+          : {};
     if (slabType === 'cantilever') {
-      setInput({ slabType, edgeX1: 'continuous', edgeX2: 'free', edgeY1: 'simple', edgeY2: 'simple' });
+      setInput({ slabType, edgeX1: 'continuous', edgeX2: 'free', edgeY1: 'simple', edgeY2: 'simple', cover, ...material });
       return;
     }
     const clear = (e: EdgeSupport): EdgeSupport => (e === 'free' ? 'continuous' : e);
@@ -53,7 +65,8 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
       edgeX2: clear(input.edgeX2),
       edgeY1: clear(input.edgeY1),
       edgeY2: clear(input.edgeY2),
-      cover: slabType === 'onGround' ? K.coverOnGround : K.cover,
+      cover,
+      ...material,
     });
   };
 
@@ -67,9 +80,14 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
             <Segmented label="ชนิดพื้น" value={input.slabType} options={SLAB_TYPE_OPTIONS} onChange={changeType} grid />
           </div>
           {onGround && (
-            <div className="span2">
-              <Segmented label="ระดับการใช้งาน" value={input.usage} options={USAGE_OPTIONS} onChange={(usage) => setInput({ usage })} />
-            </div>
+            <>
+              <div className="span2">
+                <Segmented label="ระดับการใช้งาน" value={input.usage} options={USAGE_OPTIONS} onChange={(usage) => setInput({ usage })} />
+              </div>
+              <p className="field-hint span2">
+                ออกแบบตามแบบขยายพื้น GS — ตะแกรงชั้นเดียว แยกจากคานด้วยร่องยาแนว ห้ามฝังเหล็กเข้าคาน
+              </p>
+            </>
           )}
         </div>
       </fieldset>
@@ -77,8 +95,21 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
       <fieldset>
         <legend>ช่วงพื้นและขอบ</legend>
         <div className="grid2">
-          <NumberField label={cantilever ? 'ระยะยื่น (แกน x)' : 'ช่วง lx'} unit="ซม." step={10} {...num('lx')} />
-          <NumberField label={cantilever ? 'ความกว้าง (แกน y)' : 'ช่วง ly'} unit="ซม." step={10} {...num('ly')} />
+          <NumberField
+            label={cantilever ? 'ระยะยื่น (แกน x)' : onGround ? 'ความยาวแผ่น lx' : 'ช่วง lx'}
+            unit="ซม."
+            step={10}
+            {...num('lx')}
+          />
+          <NumberField
+            label={cantilever ? 'ความกว้าง (แกน y)' : onGround ? 'ความยาวแผ่น ly' : 'ช่วง ly'}
+            unit="ซม."
+            step={10}
+            {...num('ly')}
+          />
+          {onGround && (
+            <p className="field-hint span2">ระยะระหว่างคานหรือรอยต่อ — ใช้คิดเหล็กตะแกรง As = F·L·W/(2fs)</p>
+          )}
 
           {!onGround && !cantilever && (
             <>
@@ -167,6 +198,23 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
         </div>
       </fieldset>
 
+      {onGround && (
+        <fieldset>
+          <legend>ดินใต้พื้น</legend>
+          <div className="grid2">
+            <div className="span2">
+              <NumberField
+                label="กำลังรับน้ำหนักดินที่ยอมให้ qa"
+                unit="t/m²"
+                step={0.5}
+                hint="ดินถมบดอัดใต้ทรายรองพื้น — ใช้ค่าจากผลทดสอบดินถ้ามี"
+                {...num('qa')}
+              />
+            </div>
+          </div>
+        </fieldset>
+      )}
+
       <fieldset>
         <legend>วัสดุ</legend>
         <div className="grid2">
@@ -178,9 +226,11 @@ export function SlabInputPanel({ dims }: { dims: SlabDims | null }) {
       <fieldset>
         <legend>เหล็กเสริม</legend>
         <div className="grid2">
-          <BarSelect label="เหล็กหลัก" value={input.bar} sizes={ALL_BAR_SIZES} onChange={(bar) => setInput({ bar })} />
+          {!onGround && (
+            <BarSelect label="เหล็กหลัก" value={input.bar} sizes={ALL_BAR_SIZES} onChange={(bar) => setInput({ bar })} />
+          )}
           <BarSelect
-            label="เหล็กกันร้าว"
+            label={onGround ? 'เหล็กตะแกรง (#)' : 'เหล็กกันร้าว'}
             value={input.tempBar}
             sizes={ALL_BAR_SIZES}
             onChange={(tempBar) => setInput({ tempBar })}
