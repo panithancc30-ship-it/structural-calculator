@@ -2,10 +2,12 @@ import { ACI318_WSD as C, ACI318_WSD_SLAB as K } from '../codes/aci318Wsd';
 import { codeOf } from '../codes/designCode';
 import { wsdParams } from '../design/flexure';
 import { asMinRatio } from '../footing/analyzeFooting';
+import { otherDir } from '../footing/geometry';
 import type { BarDir } from '../footing/types';
 import { ALL_BAR_SIZES, REBARS, type BarName } from '../rebar';
 import type { Face } from '../types';
 import { minThickness } from './analyzeSlab';
+import { detailDir, runArea, usesDetailS1 } from './detail';
 import { DIRS, FACES, slabGeometry } from './geometry';
 import { groundMeshMaxSpacing, groundSlab } from './ground';
 import { slabLoads, stripDemand } from './loads';
@@ -138,9 +140,50 @@ function groundMeshLayout(input: SlabInput, dims: SlabDims): SlabLayout {
   };
 }
 
+/**
+ * พื้นทางเดียว/สองทาง ตามแบบขยายพื้น S1 (ดู detail.ts)
+ *
+ * คอม้าเว้นเส้นทิศช่วงสั้นวางชั้นนอกทั้งสองผิว และใช้เหล็กเสริมพิเศษขนาดเดียวกันที่ระยะเรียง 2 เท่า ตามแบบ
+ * (RB9 @0.25 คู่กับ @0.50) เหล็กบนที่ขอบจึงเท่ากับเหล็กล่าง — ระยะเรียงคอม้าเลือกให้พอทั้ง M+ และ M−
+ * พื้นสองทาง: ทิศยาวเป็นคอม้าเช่นกัน ใช้เสริมพิเศษชุดเดียวกัน คอม้าทิศยาวจึงต้องรับเฉพาะส่วนที่เสริมพิเศษไม่พอ
+ * พื้นทางเดียว: ทิศตั้งฉากเป็นเหล็กกันร้าวผิวล่าง
+ */
+function detailLayout(input: SlabInput, dims: SlabDims): SlabLayout {
+  const p = wsdParams(input.fc, input.fy, input.fy);
+  const demands = demandAt(input, dims.t);
+  const M = (dir: BarDir) => demands.find((x) => x.dir === dir)!.M;
+  const AsTemp = asMinRatio(input.fy, codeOf(input)) * STRIP * dims.t;
+  const asFor = (m: number, d: number) => m / (p.fsAllow * p.j * d);
+  const sMain = Math.min(K.maxSpacingFactor * dims.t, K.maxSpacing);
+  const mainCandidates = candidatesFrom(input.bar);
+  const depth = (behind: number, fsjRequired: ((d: number) => number) | null) => ({
+    t: dims.t, cover: input.cover, behind, fsjRequired, minDepth: K.minEffectiveDepth,
+  });
+
+  const dir = detailDir(input);
+  const cross = otherDir(dir);
+  const crank = pickRun(mainCandidates, 1, sMain, depth(0, (d) => Math.max(asFor(M(dir).bottom, d), AsTemp, asFor(M(dir).top, d))));
+  const extra = crank && { size: crank.size, spacing: crank.spacing * K.extraSpacingRatio };
+  const behind = REBARS[crank?.size ?? input.bar].dia;
+
+  const bottom = { [dir]: crank } as Record<BarDir, BarRun | null>;
+  const top = { [dir]: extra, [cross]: null } as Record<BarDir, BarRun | null>;
+  if (input.slabType === 'twoWay') {
+    const extraAs = runArea(extra);
+    bottom[cross] = pickRun(mainCandidates, 1, sMain, depth(behind, (d) =>
+      Math.max(asFor(M(cross).bottom, d), AsTemp, 2 * (asFor(M(cross).top, d) - extraAs))));
+    top[cross] = extra && { ...extra };
+  } else {
+    const sTemp = Math.min(K.tempSpacingFactor * dims.t, K.maxSpacing);
+    bottom[cross] = pickRun(candidatesFrom(input.tempBar), AsTemp, sTemp, depth(behind, null));
+  }
+  return { bottom, top, outerLayer: { bottom: dir, top: dir } };
+}
+
 /** จัดเหล็กทั้งสองผิวสองทิศให้อัตโนมัติ */
 export function autoSlabLayout(input: SlabInput, dims: SlabDims): SlabLayout {
   if (input.slabType === 'onGround') return groundMeshLayout(input, dims);
+  if (usesDetailS1(input)) return detailLayout(input, dims);
   const p = wsdParams(input.fc, input.fy, input.fy);
   const demands = demandAt(input, dims.t);
   const rho = asMinRatio(input.fy, codeOf(input));

@@ -10,6 +10,7 @@ export const SLAB_TYPES = ['oneWay', 'twoWay', 'cantilever', 'onGround'] as cons
 export const EDGE_SUPPORTS = ['simple', 'continuous', 'free'] as const;
 export const SIZE_MODES = ['auto', 'manual'] as const;
 export const GROUND_USAGES = ['light', 'medium', 'heavy'] as const;
+export const SLAB_LEVELS = ['general', 'dropped'] as const;
 
 const includes = (list: readonly string[], value: unknown) => typeof value === 'string' && list.includes(value);
 
@@ -33,6 +34,7 @@ export function validateSlabInput(input: SlabInput): string[] {
   }
   if (!includes(SIZE_MODES, input.thicknessMode)) errors.push('รูปแบบความหนาไม่ถูกต้อง');
   if (!includes(GROUND_USAGES, input.usage)) errors.push('ระดับการใช้งานไม่ถูกต้อง');
+  if (!includes(SLAB_LEVELS, input.level)) errors.push('ระดับพื้นไม่ถูกต้อง');
   if (!isBarName(input.bar) || !isBarName(input.tempBar)) errors.push('ขนาดเหล็กไม่ถูกต้อง');
   if (errors.length > 0) return errors;
 
@@ -85,7 +87,10 @@ export function slabWarnings(input: SlabInput): string[] {
 
   // เหล็กกลม (RB) ในไทยเป็นชั้นคุณภาพ SR24 ส่วนเหล็กข้ออ้อย (DB) เป็น SD30 ขึ้นไป
   // โปรแกรมให้เลือกขนาดกับ fy แยกกัน จึงเตือนเมื่อจับคู่กันไม่ตรงตามปกติ
-  const kinds = (input.slabType === 'onGround' ? [input.tempBar] : [input.bar, input.tempBar]).map((b) => REBARS[b].kind);
+  // พื้นวางบนดินมีแต่ตะแกรง ส่วนพื้นสองทาง (แบบ S1) ใช้คอม้าทั้งสองทิศ ไม่มีเหล็กกันร้าวแยก
+  const used =
+    input.slabType === 'onGround' ? [input.tempBar] : input.slabType === 'twoWay' ? [input.bar] : [input.bar, input.tempBar];
+  const kinds = used.map((b) => REBARS[b].kind);
   if (kinds.includes('RB') && input.fy > 2400) {
     warnings.push(`เลือกเหล็กกลม RB แต่ตั้ง fy = ${input.fy} ksc — เหล็กกลมตาม มอก. เป็น SR24 (fy 2,400 ksc)`);
   }

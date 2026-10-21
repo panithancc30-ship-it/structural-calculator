@@ -28,5 +28,8 @@ export const SLAB_SECTION_BOX = { w: 82, h: 34 }
  */
 export const SLAB_GROUND_BOX = { w: 168, h: 46 }
 
+/** พื้นทางเดียว/สองทางใช้แบบขยายพื้น S1 รูปเดียวเต็มความกว้างหน้า จึงได้ 1:20 ตามแบบ */
+export const SLAB_DETAIL_BOX = { w: 168, h: 62 }
+
 /** บันไดมีรูปตัดรูปเดียวเต็มความกว้างหน้า */
 export const STAIR_SECTION_BOX = { w: 168, h: 78 }

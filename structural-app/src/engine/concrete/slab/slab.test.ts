@@ -5,8 +5,9 @@ import { REBARS } from '../rebar';
 import { analyzeSlab, minThickness } from './analyzeSlab';
 import { autoSlabLayout, slabDims } from './designSlab';
 import { supportConditionOf } from './geometry';
+import { crankDirs, detailDir, slabDetail, topAtSupport, topSpacingAtSupport } from './detail';
 import { groundSlab, subgradeDragAs } from './ground';
-import { setMesh } from './layoutOps';
+import { clampSpacing, setExtra, setMesh, setRun, stepSpacing } from './layoutOps';
 import { beamReaction, method2Interp, selfWeight, slabLoads, stripMoments, twoWayCase, twoWayMoments } from './loads';
 import type { SlabInput } from './types';
 import { validateSlabInput } from './validate';
@@ -27,6 +28,7 @@ const base: SlabInput = {
   fy: 4000,
   finishDL: 150,
   LL: 300,
+  level: 'general',
   usage: 'light',
   qa: 2,
   bar: 'DB12',
@@ -412,5 +414,139 @@ describe('พื้นวางบนดิน — แบบขยายพื�
     const layout = setMesh(autoSlabLayout(gs, slabDims(gs)), { size: 'RB9', spacing: 20 });
     expect(layout.bottom.x).toEqual({ size: 'RB9', spacing: 20 });
     expect(layout.bottom.y).toEqual({ size: 'RB9', spacing: 20 });
+  });
+});
+
+describe('แบบขยายพื้น S1 — คอม้าเว้นเส้น + เสริมพิเศษ', () => {
+  // แบบตามรูป: พื้นสองทาง 3 × 3 ม. หนา 0.10 เหล็กกลม SR24 Covering 3.0 cm.
+  const s1: SlabInput = {
+    ...base, lx: 300, ly: 300, cover: 3, fy: 2400, bar: 'RB9', tempBar: 'RB6', finishDL: 100, LL: 200,
+  };
+  const oneWayS1: SlabInput = { ...s1, slabType: 'oneWay', lx: 300, ly: 600, edgeX1: 'simple', edgeX2: 'continuous' };
+  const run = (input: SlabInput) => {
+    const dims = slabDims(input);
+    const layout = autoSlabLayout(input, dims);
+    return { dims, layout, a: analyzeSlab(input, dims, layout) };
+  };
+  const rb9 = REBARS.RB9.area;
+
+  it('เหล็กบนที่ขอบ = คอม้าครึ่งชุด + เสริมพิเศษ (คำนวณมือ)', () => {
+    // RB9 @0.25 งอขึ้นเว้นเส้น → @0.50 = 2 × 0.636 = 1.272, เสริมพิเศษ RB9 @0.50 = 1.272 → รวม 2.545 ซม.²/ม.
+    const layout = {
+      bottom: { x: { size: 'RB9' as const, spacing: 25 }, y: null },
+      top: { x: { size: 'RB9' as const, spacing: 50 }, y: null },
+      outerLayer: { bottom: 'x' as const, top: 'x' as const },
+    };
+    expect(topAtSupport(layout, 'x')).toBeCloseTo(4 * rb9, 10);
+    // คอม้า @0.50 สลับเสริมพิเศษ @0.50 → เหล็กบนเฉลี่ยห่าง 0.25
+    expect(topSpacingAtSupport(layout, 'x')).toBeCloseTo(25, 10);
+    expect(topSpacingAtSupport({ ...layout, bottom: { x: null, y: null }, top: { x: null, y: null } }, 'x')).toBeNull();
+  });
+
+  it('ค่าตามแบบ: หนา 0.10 คอม้า RB9 @0.25 เสริมพิเศษ RB9 @0.50 และผ่านทุกข้อ', () => {
+    const { dims, layout, a } = run(s1);
+    expect(dims.t).toBe(10);
+    expect(layout.bottom.x).toEqual({ size: 'RB9', spacing: 25 });
+    expect(layout.top.x).toEqual({ size: 'RB9', spacing: 50 });
+    expect(a.status).toBe('ok');
+    expect(a.detail).toMatchObject({ dir: 'x', cross: 'y', L: 300, cutoff: 75, bend: 60 });
+  });
+
+  it('เสริมพิเศษขนาดเดียวกับคอม้า ระยะเรียง 2 เท่า — เหล็กบนที่ขอบเท่าเหล็กล่าง', () => {
+    for (const input of [s1, base, oneWayS1]) {
+      const { layout } = run(input);
+      const dir = detailDir(input);
+      expect(layout.top[dir]!.size).toBe(layout.bottom[dir]!.size);
+      expect(layout.top[dir]!.spacing).toBeCloseTo(2 * layout.bottom[dir]!.spacing, 10);
+      expect(topAtSupport(layout, dir)).toBeCloseTo((100 / layout.bottom[dir]!.spacing) * REBARS[layout.bottom[dir]!.size].area, 8);
+    }
+  });
+
+  it('พื้นสองทาง: คอม้าทั้งสองทิศ ใช้เสริมพิเศษชุดเดียวกัน ทิศช่วงสั้นอยู่ชั้นนอก', () => {
+    const tall = { ...s1, lx: 400, ly: 300 };
+    const { layout, a } = run(tall);
+    expect(crankDirs(tall)).toEqual(['x', 'y']);
+    expect(a.detail!.dir).toBe('y');
+    expect(layout.outerLayer).toEqual({ bottom: 'y', top: 'y' });
+    expect(layout.top.x).toEqual(layout.top.y);
+    expect(a.checks.filter((c) => c.status === 'fail')).toEqual([]);
+  });
+
+  it('พื้นทางเดียว: ทิศ Y เป็นเหล็กกันร้าว ρ·b·t ไม่มีเหล็กบน', () => {
+    const { dims, layout, a } = run(oneWayS1);
+    expect(crankDirs(oneWayS1)).toEqual(['x']);
+    expect(layout.top.y).toBeNull();
+    expect(layout.bottom.y!.size).toBe('RB6');
+    expect(a.y.bottom.AsReq).toBeCloseTo(asMinRatio(2400) * 100 * dims.t, 8);
+    expect(a.checks.some((c) => c.label.startsWith('As ทิศ Y — เหล็กกันร้าว'))).toBe(true);
+  });
+
+  it('รายการตรวจบอกชุดเหล็กตามแบบ และตรวจระยะเรียงเฉลี่ยของเหล็กบน', () => {
+    const labels = run(s1).a.checks.map((c) => c.label);
+    expect(labels).toContain('As+ ทิศ X กลางช่วง — คอม้าเว้นเส้น (ซม.²/ม.)');
+    expect(labels).toContain('As− ทิศ X ที่ขอบ = คอม้า/2 + เสริมพิเศษ (ซม.²/ม.)');
+    expect(labels).toContain('ระยะเรียงเหล็กทิศ X ผิวบนที่ขอบ (เฉลี่ย) (ซม.)');
+  });
+
+  it('ขอบยึดหมุนทั้งสองด้าน ไม่มีโมเมนต์ลบ → ไม่ตรวจ As− (เสริมตามแบบ)', () => {
+    const { a } = run({ ...oneWayS1, edgeX2: 'simple' });
+    expect(a.checks.some((c) => c.label.startsWith('As− '))).toBe(false);
+  });
+
+  it('เสริมพิเศษห่างเกินไปที่แก้เอง → As− ที่ขอบไม่พอ', () => {
+    const { dims, layout } = run(s1);
+    const sparse = setExtra(layout, crankDirs(s1), { spacing: 90 });
+    const a = analyzeSlab(s1, dims, sparse);
+    const check = a.checks.find((c) => c.label.startsWith('As− ทิศ X'));
+    expect(check?.status).toBe('fail');
+  });
+
+  it('ขั้นตอนคำนวณบอกระยะ L/4 และ L/5 จากช่วงสั้น', () => {
+    const step = run(s1).a.steps.find((x) => x.label.startsWith('ระยะตัดเหล็ก'));
+    expect(step?.value).toBe('L/4 = 0.75, L/5 = 0.60 ม.');
+  });
+
+  it('ความลึกเหล็กบนใช้เส้นที่ใหญ่กว่าของคอม้ากับเสริมพิเศษ', () => {
+    const { dims, layout } = run(s1);
+    const bigger = setExtra(layout, crankDirs(s1), { size: 'DB12' });
+    const a = analyzeSlab(s1, dims, bigger);
+    expect(a.x.top.d).toBeCloseTo(dims.t - s1.cover - REBARS.DB12.dia / 2, 8);
+    expect(a.x.bottom.d).toBeCloseTo(dims.t - s1.cover - REBARS.RB9.dia / 2, 8);
+  });
+
+  it('slabDetail ใช้ช่วงสั้นเป็น L', () => {
+    expect(slabDetail({ ...s1, lx: 500, ly: 400 }, { lx: 500, ly: 400 }).L).toBe(400);
+    expect(slabDetail(oneWayS1, oneWayS1).L).toBe(300);
+  });
+});
+
+describe('แก้ระยะเรียงจากรูป', () => {
+  const layout = autoSlabLayout(base, slabDims(base));
+
+  it('กรอกระยะนอกโมดูล 2.5 ซม. ได้ (0.165 ตามแบบ) ปัดทีละ 0.5 ซม.', () => {
+    expect(clampSpacing(16.5)).toBe(16.5);
+    expect(clampSpacing(16.4)).toBe(16.5);
+    expect(clampSpacing(60)).toBe(45);
+    expect(setRun(layout, 'bottom', 'y', { spacing: 16.5 }).bottom.y!.spacing).toBe(16.5);
+  });
+
+  it('ปุ่ม −/+ เลื่อนไปค่าถัดไปบนโมดูล 2.5 ซม.', () => {
+    expect(stepSpacing(16.5, true)).toBe(17.5);
+    expect(stepSpacing(16.5, false)).toBe(15);
+    expect(stepSpacing(20, true)).toBe(22.5);
+    expect(stepSpacing(20, false)).toBe(17.5);
+  });
+
+  it('เสริมพิเศษห่างได้ถึง 0.90 ม. และแก้พร้อมกันทุกทิศที่มีคอม้า', () => {
+    const next = setExtra(layout, ['x', 'y'], { size: 'DB10', spacing: 50 });
+    expect(next.top.x).toEqual({ size: 'DB10', spacing: 50 });
+    expect(next.top.y).toEqual({ size: 'DB10', spacing: 50 });
+    expect(setExtra(layout, ['x', 'y'], { spacing: 120 }).top.x!.spacing).toBe(90);
+  });
+
+  it('เพิ่มเสริมพิเศษกลับเข้ามาจากค่าที่คำนวณได้', () => {
+    const empty = { ...layout, top: { x: null, y: null } };
+    expect(setExtra(empty, ['x'], {})).toBe(empty);
+    expect(setExtra(empty, ['x'], {}, { size: 'RB9', spacing: 40 }).top).toEqual({ x: { size: 'RB9', spacing: 40 }, y: null });
   });
 });

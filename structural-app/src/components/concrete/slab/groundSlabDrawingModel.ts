@@ -86,13 +86,44 @@ export interface GroundCallout {
   text: NoteText;
 }
 
-export interface GroundTitle {
+/** ชื่อรูปแบบขยาย: "แบบขยายพื้น GS" ขีดเส้นใต้ "Scale ... 1:20" ใต้เส้น และคำกำกับด้านขวา */
+export interface DetailTitle {
   title: NoteText;
   titleSize: number;
   underline: string;
   scaleLabel: NoteText;
   scaleValue: NoteText;
   suffix: NoteText;
+}
+
+/** วางชื่อรูปแบบขยายใต้รูป กึ่งกลางที่ cx ต่อจากขอบล่างของ ext แล้วขยาย ext ให้ครอบชื่อรูป — ใช้ร่วมกับแบบขยายพื้น S1 */
+export function detailTitle(
+  ext: Extent,
+  cx: number,
+  titleText: string,
+  suffixText: string,
+  denom: number,
+  u: number,
+  sizes: TextSizes,
+): DetailTitle {
+  const titleSize = TEXT_MM.title * 1.15 * u;
+  const lineW = textWidth(titleText, titleSize) + 6 * u;
+  const total = lineW + 1.5 * u + textWidth(suffixText, sizes.label);
+  const x0 = cx - total / 2;
+  const ty = ext.y2 + 7 * u;
+  const subY = ty + 0.9 * u + sizes.small;
+  const title: DetailTitle = {
+    title: { x: x0, y: ty, text: titleText, anchor: 'start' },
+    titleSize,
+    underline: `M${x0},${ty + 0.9 * u} h${lineW}`,
+    scaleLabel: { x: x0, y: subY, text: 'Scale', anchor: 'start' },
+    scaleValue: { x: x0 + lineW, y: subY, text: `1:${denom}`, anchor: 'end' },
+    suffix: { x: x0 + lineW + 1.5 * u, y: ty, text: suffixText, anchor: 'start' },
+  };
+  ext.add(textRect(x0, ty, titleText, titleSize, 'start'));
+  ext.add(textRect(x0, subY, 'Scale', sizes.small, 'start'));
+  ext.add(textRect(title.suffix.x, ty, suffixText, sizes.label, 'start'));
+  return title;
 }
 
 export interface GroundDetailModel {
@@ -115,7 +146,7 @@ export interface GroundDetailModel {
   callouts: GroundCallout[];
   /** เส้นบอกความหนาด้านซ้าย ตัวเลขเขียนแนวนอนตามแบบ */
   dim: { path: string; ticks: string; labels: NoteText[] };
-  title: GroundTitle;
+  title: DetailTitle;
   view: Box;
   sizeMm: { w: number; h: number };
 }
@@ -291,26 +322,8 @@ export function buildGroundDetail(
   };
   ext.add({ x1: dimX - 1.2 * u, y1: top, x2: dimX + 1.2 * u, y2: bottom });
 
-  // ---- ชื่อรูป: "แบบขยายพื้น GS" ขีดเส้นใต้ "Scale ... 1:20" ใต้เส้น และคำกำกับด้านขวา
-  const titleText = groundTitle(input);
-  const titleSize = TEXT_MM.title * 1.15 * u;
-  const lineW = textWidth(titleText, titleSize) + 6 * u;
-  const suffixText = GROUND_DETAIL_SUFFIX[kind];
-  const total = lineW + 1.5 * u + textWidth(suffixText, sizes.label);
-  const x0 = -total / 2;
-  const ty = ext.y2 + 7 * u;
-  const subY = ty + 0.9 * u + sizes.small;
-  const title: GroundTitle = {
-    title: { x: x0, y: ty, text: titleText, anchor: 'start' },
-    titleSize,
-    underline: `M${x0},${ty + 0.9 * u} h${lineW}`,
-    scaleLabel: { x: x0, y: subY, text: 'Scale', anchor: 'start' },
-    scaleValue: { x: x0 + lineW, y: subY, text: `1:${denom}`, anchor: 'end' },
-    suffix: { x: x0 + lineW + 1.5 * u, y: ty, text: suffixText, anchor: 'start' },
-  };
-  ext.add(textRect(x0, ty, titleText, titleSize, 'start'));
-  ext.add(textRect(x0, subY, 'Scale', sizes.small, 'start'));
-  ext.add(textRect(title.suffix.x, ty, suffixText, sizes.label, 'start'));
+  // ---- ชื่อรูปกลางแผ่นพื้น (รูปสมมาตรรอบ x = 0)
+  const title = detailTitle(ext, 0, groundTitle(input), GROUND_DETAIL_SUFFIX[kind], denom, u, sizes);
 
   const view = ext.box(2 * u);
   return {

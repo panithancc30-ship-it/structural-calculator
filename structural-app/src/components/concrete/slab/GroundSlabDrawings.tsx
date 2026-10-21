@@ -2,7 +2,14 @@ import { useId, useMemo, type MouseEvent } from 'react';
 import type { SlabAnalysis } from '@/engine/concrete/slab/analyzeSlab';
 import type { SlabInput, SlabLayout } from '@/engine/concrete/slab/types';
 import { Frame, usePickHandlers } from '../footing/FootingDrawings';
-import { buildGroundDetail, GROUND_DETAIL_SUFFIX, groundTitle, type GroundDetailKind } from './groundSlabDrawingModel';
+import type { TextSizes } from '../footing/footingDrawingModel';
+import {
+  buildGroundDetail,
+  GROUND_DETAIL_SUFFIX,
+  groundTitle,
+  type DetailTitle,
+  type GroundDetailKind,
+} from './groundSlabDrawingModel';
 import type { SlabPick } from './slabDrawingModel';
 
 const INK = '#111';
@@ -116,23 +123,29 @@ export function GroundSlabDetail(props: Props) {
         );
       })}
 
-      {/* ชื่อรูป */}
-      <g fill={INK}>
-        <text x={m.title.title.x} y={m.title.title.y} fontSize={m.title.titleSize}>
-          {m.title.title.text}
-        </text>
-        <path d={m.title.underline} stroke={INK} strokeWidth={0.15 * u} />
-        <text x={m.title.scaleLabel.x} y={m.title.scaleLabel.y} fontSize={m.sizes.small}>
-          {m.title.scaleLabel.text}
-        </text>
-        <text x={m.title.scaleValue.x} y={m.title.scaleValue.y} fontSize={m.sizes.small} textAnchor="end">
-          {m.title.scaleValue.text}
-        </text>
-        <text x={m.title.suffix.x} y={m.title.suffix.y} fontSize={m.sizes.label}>
-          {m.title.suffix.text}
-        </text>
-      </g>
+      <DetailTitleText title={m.title} sizes={m.sizes} u={u} />
     </Frame>
+  );
+}
+
+/** ชื่อรูปแบบขยาย (ใช้ร่วมกับแบบขยายพื้น S1) */
+export function DetailTitleText({ title, sizes, u }: { title: DetailTitle; sizes: TextSizes; u: number }) {
+  return (
+    <g fill={INK}>
+      <text x={title.title.x} y={title.title.y} fontSize={title.titleSize}>
+        {title.title.text}
+      </text>
+      <path d={title.underline} stroke={INK} strokeWidth={0.15 * u} />
+      <text x={title.scaleLabel.x} y={title.scaleLabel.y} fontSize={sizes.small}>
+        {title.scaleLabel.text}
+      </text>
+      <text x={title.scaleValue.x} y={title.scaleValue.y} fontSize={sizes.small} textAnchor="end">
+        {title.scaleValue.text}
+      </text>
+      <text x={title.suffix.x} y={title.suffix.y} fontSize={sizes.label}>
+        {title.suffix.text}
+      </text>
+    </g>
   );
 }
 
