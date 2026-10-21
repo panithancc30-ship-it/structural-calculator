@@ -4,6 +4,13 @@ import type { BarName } from './rebar';
 export type SectionKey = 'A' | 'B';
 export type Face = 'top' | 'bottom';
 export type StirrupMode = 'auto' | 'single' | 'double';
+/**
+ * แบบของ 2 ปลอก (4 ขา) — ปลอกนอกปิดรอบเหล็กทั้งหมดเหมือนกัน ต่างกันที่ปลอกใน
+ * - narrow  ปลอกในแคบ คร่อมเหล็กเส้นกลางของชั้นแรก (ชั้นแรกบน/ล่างต้องมี ≥ 4 เส้น)
+ * - layer2  ปลอกในกว้างเต็มคาน รัดเหล็กชั้นที่ 2 บน/ล่างไว้ที่มุม (ชั้นที่ 2 บน/ล่างต้องมี ≥ 2 เส้น)
+ */
+export type DoubleStirrupType = 'narrow' | 'layer2';
+export const DOUBLE_STIRRUP_TYPES: readonly DoubleStirrupType[] = ['narrow', 'layer2'];
 export type SupportCondition = 'simple' | 'oneEnd' | 'bothEnds' | 'cantilever';
 /**
  * วิธีคำนวณแรงเฉือนร่วมแรงบิด
@@ -33,6 +40,8 @@ export interface BeamInput {
   mainBar: BarName;
   stirrupBar: BarName;
   stirrupMode: StirrupMode;
+  /** แบบของ 2 ปลอกเมื่อโปรแกรมเลือก/ผู้ใช้สั่ง 2 ปลอก — ไม่ระบุ = ปลอกในแคบ */
+  doubleStirrup?: DoubleStirrupType;
   /** ระยะเหล็กปลอกต่ำสุดที่ยังก่อสร้างสะดวก (ซม.) */
   sMin: number;
   support: SupportCondition;
@@ -61,6 +70,8 @@ export interface StirrupSpec {
   size: BarName;
   /** 1 = ปลอกเดี่ยว (2 ขา), 2 = ปลอกนอก + ปลอกใน (4 ขา) */
   count: 1 | 2;
+  /** แบบของปลอกใน (ใช้เมื่อ count = 2) — ไม่ระบุ = ปลอกในแคบ (ไฟล์ก่อนมีตัวเลือกนี้) */
+  inner?: DoubleStirrupType;
   /** ระยะเรียง (ซม.) */
   spacing: number;
 }
@@ -95,3 +106,6 @@ export interface CalcStep {
   /** แสดงในใบพิมพ์ A4 ด้วย */
   print?: boolean;
 }
+
+/** แบบปลอกในของรูปแบบเหล็ก — ไฟล์เก่าไม่มีค่านี้ = ปลอกในแคบ */
+export const innerTypeOf = (spec: Pick<StirrupSpec, 'inner'>): DoubleStirrupType => spec.inner ?? 'narrow';

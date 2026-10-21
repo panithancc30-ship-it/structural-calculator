@@ -2,7 +2,7 @@ import { ACI318_WSD as C } from '../codes/aci318Wsd';
 import { MAIN_BAR_SIZES, REBARS, type BarName } from '../rebar';
 import { fmt } from '../format';
 import { faceArea, layoutSignature, makeLayer, newId } from '../layoutOps';
-import type { BeamInput, CalcStep, CheckItem, SectionKey, SectionLayout, SideBarRow } from '../types';
+import { innerTypeOf, type BeamInput, type CalcStep, type CheckItem, type SectionKey, type SectionLayout, type SideBarRow } from '../types';
 import { geoBase, layerCapacity, splitIntoLayers } from './barLayout';
 import { wsdParams, type WsdParams } from './flexure';
 import { analyzeSection, type SectionAnalysis, type SectionContext } from './sectionCheck';
@@ -33,7 +33,10 @@ export function autoLayoutDetailed(input: BeamInput, key: SectionKey, ctx: Secti
     top: [makeLayer(2, main)],
     bottom: [makeLayer(2, main)],
     side: [],
-    stirrup: { size: input.stirrupBar, count: input.stirrupMode === 'double' ? 2 : 1, spacing: 20 },
+    stirrup:
+      input.stirrupMode === 'double'
+        ? { size: input.stirrupBar, count: 2, inner: innerTypeOf({ inner: input.doubleStirrup }), spacing: 20 }
+        : { size: input.stirrupBar, count: 1, spacing: 20 },
   };
   const seen = new Set<string>([layoutSignature(layout)]);
   let choice: StirrupChoice | null = null;
@@ -42,6 +45,8 @@ export function autoLayoutDetailed(input: BeamInput, key: SectionKey, ctx: Secti
     const a = analyzeSection(input, key, layout, ctx);
     choice = chooseStirrup(input, (size) => shearTorsionDemand(input, a.params, a.dT, REBARS[size].dia));
     const stirrup = choice.spec;
+    // 2 ปลอกต้องมีเหล็กมุมให้ปลอกใน: ปลอกในแคบใช้ชั้นแรก 4 เส้น, ปลอกในรัดชั้น 2 ใช้ชั้นแรก 2 + ชั้นที่ 2 อีก 2 เส้น
+    const layer2 = stirrup.count === 2 && innerTypeOf(stirrup) === 'layer2';
     const minBars = stirrup.count === 2 ? 4 : 2;
     const need = (req: number) => (Number.isFinite(req) ? Math.ceil(req / mainSpec.area - 1e-6) : minBars);
     const nT = Math.max(minBars, need(a.req.AsTension));
@@ -50,7 +55,10 @@ export function autoLayoutDetailed(input: BeamInput, key: SectionKey, ctx: Secti
     const g = geoBase(input, stirrup, mainSpec.dia);
     const cap0 = layerCapacity(g, mainSpec.dia, 0);
     const capN = layerCapacity(g, mainSpec.dia, 1);
-    const layersFor = (n: number) => splitIntoLayers(n, cap0, capN, minBars).map((c) => makeLayer(c, main));
+    const layersFor = (n: number) =>
+      (layer2 ? splitIntoLayers(n, Math.min(cap0, n - 2), capN, 2) : splitIntoLayers(n, cap0, capN, minBars)).map((c) =>
+        makeLayer(c, main),
+      );
 
     const next: SectionLayout = {
       top: layersFor(a.tensionFace === 'top' ? nT : nC),

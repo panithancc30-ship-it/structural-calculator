@@ -3,18 +3,21 @@ import type { SectionAnalysis } from '@/engine/concrete/design/sectionCheck';
 import { fmt } from '@/engine/concrete/format';
 import { ensureInnerAnchors, setStirrup } from '@/engine/concrete/layoutOps';
 import { STIRRUP_BAR_SIZES, type BarName } from '@/engine/concrete/rebar';
-import type { SectionLayout } from '@/engine/concrete/types';
+import { innerTypeOf, type DoubleStirrupType, type SectionLayout } from '@/engine/concrete/types';
 import { SizeChips, type ApplyEdit } from './BarPopover';
+import { DOUBLE_STIRRUP_TH, DoubleStirrupPicker } from './DoubleStirrupPicker';
 
 interface Props {
   layout: SectionLayout;
   analysis: SectionAnalysis;
   mainBar: BarName;
   sMin: number;
+  /** แบบ 2 ปลอกตั้งต้นจากแผงกรอกข้อมูล — ใช้เมื่อสลับจาก 1 ปลอกเป็น 2 ปลอก */
+  defaultInner?: DoubleStirrupType;
   apply: ApplyEdit;
 }
 
-export function StirrupPopover({ layout, analysis, mainBar, sMin, apply }: Props) {
+export function StirrupPopover({ layout, analysis, mainBar, sMin, defaultInner = 'narrow', apply }: Props) {
   const st = layout.stirrup;
   const cap = analysis.stirrupCap;
   const step = C.spacingStep;
@@ -33,8 +36,8 @@ export function StirrupPopover({ layout, analysis, mainBar, sMin, apply }: Props
             aria-pressed={st.count === count}
             onClick={() =>
               apply((l) => {
-                const next = setStirrup(l, { count });
-                return count === 2 ? ensureInnerAnchors(next, mainBar) : next;
+                const next = setStirrup(l, count === 2 ? { count, inner: l.stirrup.inner ?? defaultInner } : { count });
+                return ensureInnerAnchors(next, mainBar);
               })
             }
           >
@@ -65,7 +68,16 @@ export function StirrupPopover({ layout, analysis, mainBar, sMin, apply }: Props
         </button>
       )}
       {st.count === 2 && (
-        <p className="popover-hint">ปลอกในขนาด/ระยะเดียวกับปลอกนอก ต้องมีเหล็กมุม — ชั้นแรกบนและล่างอย่างน้อย 4 เส้น</p>
+        <>
+          <div className="popover-sub">แบบ 2 ปลอก</div>
+          <DoubleStirrupPicker
+            value={innerTypeOf(st)}
+            onChange={(inner) => apply((l) => ensureInnerAnchors(setStirrup(l, { inner }), mainBar))}
+          />
+          <p className="popover-hint">
+            ปลอกในขนาด/ระยะเดียวกับปลอกนอก ต้องมีเหล็กมุม — {DOUBLE_STIRRUP_TH[innerTypeOf(st)].hint} (เติมให้เมื่อเปลี่ยนแบบ)
+          </p>
+        </>
       )}
     </>
   );

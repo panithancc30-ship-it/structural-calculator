@@ -1,6 +1,6 @@
 import type { DesignCode } from '../codes/designCode';
 import type { BarName } from '../rebar';
-import type { StirrupMode } from '../types';
+import type { DoubleStirrupType, StirrupMode } from '../types';
 
 /** สภาพรองรับของคานรับพื้นยื่น — ใช้เลือกสัมประสิทธิ์โมเมนต์และแรงเฉือน */
 export type LedgeSupport = 'simple' | 'oneEnd' | 'bothEnds';
@@ -49,6 +49,8 @@ export interface LedgeBeamInput {
   mainBar: BarName;
   stirrupBar: BarName;
   stirrupMode: StirrupMode;
+  /** แบบของ 2 ปลอก — ไม่ระบุ = ปลอกในแคบ */
+  doubleStirrup?: DoubleStirrupType;
   /** ระยะเหล็กปลอกต่ำสุดที่ยังก่อสร้างสะดวก (ซม.) */
   sMin: number;
 }
