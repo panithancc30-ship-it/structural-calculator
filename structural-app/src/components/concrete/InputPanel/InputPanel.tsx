@@ -1,6 +1,7 @@
 import { MAIN_BAR_SIZES, STEEL_GRADES, STIRRUP_BAR_SIZES } from '@/engine/concrete/rebar';
 import type { BeamInput, StirrupMode, SupportCondition } from '@/engine/concrete/types';
 import { useStore } from '@/state/store';
+import { DOUBLE_STIRRUP_TH, DoubleStirrupPicker } from '../editor/DoubleStirrupPicker';
 import { BarSelect, CodeFieldset, NumberField, SteelField } from '../form/Fields';
 import { SUPPORT_TH } from '../labels';
 
@@ -103,6 +104,16 @@ export function InputPanel() {
               อัตโนมัติ: ใช้ 1 ปลอกก่อน ถ้าระยะแคบกว่าค่าต่ำสุดจึงใช้ 2 ปลอก (ปลอกนอก + ปลอกใน ขนาดและระยะเดียวกัน)
             </span>
           </div>
+          {input.stirrupMode !== 'single' && (
+            <div className="field span2">
+              <span className="field-label">แบบ 2 ปลอก</span>
+              <DoubleStirrupPicker
+                value={input.doubleStirrup ?? 'narrow'}
+                onChange={(doubleStirrup) => setInput({ doubleStirrup })}
+              />
+              <span className="field-hint">{DOUBLE_STIRRUP_TH[input.doubleStirrup ?? 'narrow'].hint} — โปรแกรมเติมเหล็กมุมให้เอง</span>
+            </div>
+          )}
           <NumberField label="ระยะปลอกต่ำสุดที่ยอมรับ" unit="ซม." step={2.5} {...num('sMin')} />
         </div>
       </fieldset>

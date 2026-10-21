@@ -1,6 +1,6 @@
 /** การแก้ไขรูปแบบเหล็กเสริม (pure functions — คืนค่า layout ใหม่เสมอ) */
 import { REBARS, type BarName } from './rebar';
-import type { BarLayer, Face, SectionLayout, StirrupSpec } from './types';
+import { innerTypeOf, type BarLayer, type Face, type SectionLayout, type StirrupSpec } from './types';
 
 let seq = 0;
 export function newId(prefix: string): string {
@@ -65,8 +65,26 @@ export function setStirrup(layout: SectionLayout, patch: Partial<StirrupSpec>): 
   return { ...layout, stirrup: { ...layout.stirrup, ...patch } };
 }
 
-/** โหมด 2 ปลอก: เติมเหล็กชั้นแรกบน/ล่างให้ครบ 4 เส้น เพื่อเป็นเหล็กมุมของปลอกใน */
+/**
+ * โหมด 2 ปลอก: เติมเหล็กมุมของปลอกในให้ครบ
+ * - ปลอกในแคบ: ชั้นแรกบน/ล่างอย่างน้อย 4 เส้น
+ * - ปลอกในรัดชั้น 2: ชั้นที่ 2 บน/ล่างอย่างน้อย 2 เส้น (ขนาดเดียวกับชั้นแรก)
+ */
 export function ensureInnerAnchors(layout: SectionLayout, fallback: BarName): SectionLayout {
+  if (layout.stirrup.count !== 2) return layout;
+  if (innerTypeOf(layout.stirrup) === 'layer2') {
+    const fix2 = (face: Face): BarLayer[] => {
+      const layers = layout[face].length > 0 ? layout[face] : [makeLayer(2, fallback)];
+      const [first, second, ...rest] = layers;
+      const size = first.bars[first.bars.length - 1]?.size ?? fallback;
+      if (!second) return [first, makeLayer(2, size)];
+      if (second.bars.length >= 2) return layers;
+      const bars = [...second.bars];
+      while (bars.length < 2) bars.push({ id: newId('b'), size: bars[0]?.size ?? size });
+      return [first, { ...second, bars }, ...rest];
+    };
+    return { ...layout, top: fix2('top'), bottom: fix2('bottom') };
+  }
   const fix = (face: Face): BarLayer[] => {
     const layers = layout[face];
     if (layers.length === 0) return [makeLayer(4, fallback)];
@@ -89,5 +107,5 @@ export function layoutSignature(layout: SectionLayout): string {
   const faces = (['top', 'bottom'] as const).map((f) => layout[f].map((l) => l.bars.map((b) => b.size).join(',')).join('|'));
   const side = layout.side.map((r) => r.size).join(',');
   const s = layout.stirrup;
-  return `${faces.join('/')}/${side}/${s.size}x${s.count}@${s.spacing}`;
+  return `${faces.join('/')}/${side}/${s.size}x${s.count}${s.count === 2 ? innerTypeOf(s) : ''}@${s.spacing}`;
 }

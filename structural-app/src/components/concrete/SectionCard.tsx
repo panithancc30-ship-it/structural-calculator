@@ -116,7 +116,14 @@ export function SectionCard({
               ×
             </button>
             {sel.pick.kind === 'stirrup' ? (
-              <StirrupPopover layout={layout} analysis={analysis} mainBar={input.mainBar} sMin={input.sMin} apply={apply} />
+              <StirrupPopover
+                layout={layout}
+                analysis={analysis}
+                mainBar={input.mainBar}
+                sMin={input.sMin}
+                defaultInner={input.doubleStirrup}
+                apply={apply}
+              />
             ) : (
               <BarPopover key={pickId(sel.pick)} layout={layout} pick={sel.pick} apply={apply} close={close} />
             )}

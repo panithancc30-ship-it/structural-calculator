@@ -28,6 +28,7 @@ export function ledgeSectionInputs(input: LedgeBeamInput, loads: LedgeLoads): Re
     mainBar: input.mainBar,
     stirrupBar: input.stirrupBar,
     stirrupMode: input.stirrupMode,
+    doubleStirrup: input.doubleStirrup,
     sMin: input.sMin,
     support: input.support,
     code: input.code,

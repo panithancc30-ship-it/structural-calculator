@@ -4,7 +4,7 @@ import { designLedge, type LedgeLayouts } from '@/engine/concrete/ledge/analyzeL
 import { LEDGE_SUPPORTS, type LedgeBeamInput } from '@/engine/concrete/ledge/types';
 import { validateLedgeInput } from '@/engine/concrete/ledge/validate';
 import { isBarName } from '@/engine/concrete/rebar';
-import type { SectionKey, SectionLayout } from '@/engine/concrete/types';
+import { DOUBLE_STIRRUP_TYPES, type DoubleStirrupType, type SectionKey, type SectionLayout } from '@/engine/concrete/types';
 import { isLayout } from './store';
 
 type Edited = Record<SectionKey, boolean>;
@@ -36,6 +36,7 @@ export const DEFAULT_LEDGE: LedgeBeamInput = {
   mainBar: 'DB12',
   stirrupBar: 'RB9',
   stirrupMode: 'auto',
+  doubleStirrup: 'narrow',
   sMin: 10,
 };
 
@@ -74,7 +75,11 @@ export function parseLedgeProject(data: unknown): LedgeProjectFile | string {
   }
   if (!isBarName(input.mainBar) || !isBarName(input.stirrupBar)) return 'ขนาดเหล็กในไฟล์ไม่ถูกต้อง';
   if (!DESIGN_CODES.includes(input.code as DesignCode)) return 'มาตรฐานการออกแบบในไฟล์ไม่ถูกต้อง';
-  if (!LEDGE_SUPPORTS.includes(input.support as LedgeBeamInput['support']) || !STIRRUP_MODES.includes(input.stirrupMode as string)) {
+  if (
+    !LEDGE_SUPPORTS.includes(input.support as LedgeBeamInput['support']) ||
+    !STIRRUP_MODES.includes(input.stirrupMode as string) ||
+    !DOUBLE_STIRRUP_TYPES.includes(input.doubleStirrup as DoubleStirrupType)
+  ) {
     return 'สภาพรองรับหรือรูปแบบเหล็กปลอกในไฟล์ไม่ถูกต้อง';
   }
   const layouts = asObj(root.layouts);

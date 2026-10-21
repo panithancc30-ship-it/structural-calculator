@@ -4,6 +4,7 @@ import type { LedgeBeamInput, LedgeSupport } from '@/engine/concrete/ledge/types
 import { MAIN_BAR_SIZES, STEEL_GRADES, STIRRUP_BAR_SIZES } from '@/engine/concrete/rebar';
 import type { StirrupMode } from '@/engine/concrete/types';
 import { useLedgeStore } from '@/state/ledgeStore';
+import { DOUBLE_STIRRUP_TH, DoubleStirrupPicker } from '../editor/DoubleStirrupPicker';
 import { BarSelect, CodeFieldset, NumberField, Segmented, SteelField } from '../form/Fields';
 import { SUPPORT_TH } from '../labels';
 import { LedgeSketch } from './LedgeSketch';
@@ -135,6 +136,16 @@ export function LedgeInputPanel({ loads }: { loads: LedgeLoads | null }) {
             options={STIRRUP_MODES}
             onChange={(stirrupMode) => setInput({ stirrupMode })}
           />
+          {input.stirrupMode !== 'single' && (
+            <div className="field span2">
+              <span className="field-label">แบบ 2 ปลอก</span>
+              <DoubleStirrupPicker
+                value={input.doubleStirrup ?? 'narrow'}
+                onChange={(doubleStirrup) => setInput({ doubleStirrup })}
+              />
+              <span className="field-hint">{DOUBLE_STIRRUP_TH[input.doubleStirrup ?? 'narrow'].hint} — โปรแกรมเติมเหล็กมุมให้เอง</span>
+            </div>
+          )}
           <p className="field-hint span2">แรงบิดใช้ได้เฉพาะปลอกนอกที่ปิดรอบหน้าตัด 2 ปลอกจึงช่วยเฉพาะแรงเฉือน</p>
           <NumberField label="ระยะปลอกต่ำสุดที่ยอมรับ" unit="ซม." step={2.5} {...num('sMin')} />
         </div>
